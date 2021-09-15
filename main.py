@@ -1,5 +1,6 @@
 import discord
 import os
+from decouple import config
 from discord.ext import commands
 
 class bcolors:
@@ -13,6 +14,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+token = config('TOKEN')
 client = discord.Client()
 client = commands.Bot(command_prefix="$", help_command=None)
 
@@ -65,5 +67,4 @@ async def on_message(message):
   
     await client.process_commands(message)
 
-token = os.environ['TOKEN'] # Discord bot token
 client.run(token)

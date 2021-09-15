@@ -1,13 +1,14 @@
 import os
 import requests
 import json
+from decouple import config
 from discord.ext import commands
 
 
 class league(commands.Cog):
   def __init__(self, client):
     self.client = client
-    self.riotkey = os.environ['RIOT']
+    self.riotkey = config('RIOT')
   
   @commands.Cog.listener()
   async def on_ready(self):
