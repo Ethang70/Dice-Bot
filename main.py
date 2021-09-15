@@ -66,6 +66,12 @@ async def on_message(message):
     if ("THANKS BOT").lower() == message.content.lower() or ("THANK YOU BOT").lower() == message.content.lower():
         user = message.author.id
         await message.channel.send("No worries, <@%s>" % user)
+    
+    if ("BAD BOT").lower() == message.content.lower():
+      await message.add_reaction('😢')
+      await message.channel.send(":(")
+      
+      
   
     await client.process_commands(message)
 
