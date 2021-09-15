@@ -18,7 +18,7 @@ class general(commands.Cog):
   @commands.command()
   async def help(self, ctx):
       user = ctx.author
-      helpCommandList = ("Hi. I'm the Dice Bot. My prefix is " + config('PREFIX') +". \nList of Dice Bot Commands:\nrtd, sid, question\nType " + config('PREFIX') + "[command] ? to get more help on a command!")
+      helpCommandList = ("Hi. I'm the Dice Bot.\n**Prefix:** " + config('PREFIX') +" \n\n**General Commands:**\nrtd\nthumb\nquestion\n\n**League of Legends Commands:**\nsid\n\n**Music Commands:**\nplay\njoin\nsummon\nleave\nvolume\nnow\npause\nresume\nstop\nskip\nqueue\nshuffle\nremove\nloop\nType " + config('PREFIX') + "[command] ? to get more help on a command!\nSee ya later!")
       await user.send(helpCommandList)
       await ctx.message.add_reaction('👍')
     
@@ -70,7 +70,7 @@ class general(commands.Cog):
           return user == ctx.message.author and str(reaction.emoji) == '👍'
 
       try:
-          reaction, user = await self.client.wait_for('reaction_add', timeout=60.0, check=check)
+          reaction, user = await self.client.wait_for('reaction_add', timeout=10.0, check=check)
       except asyncio.TimeoutError:
           await channel.send('👎')
       else:

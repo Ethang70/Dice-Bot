@@ -71,7 +71,6 @@ async def on_message(message):
       await message.add_reaction('😢')
       await message.channel.send(":(")
       
-      
   
     await client.process_commands(message)
 
