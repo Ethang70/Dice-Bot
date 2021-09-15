@@ -1,4 +1,3 @@
-import os
 import requests
 import json
 from decouple import config
@@ -49,6 +48,9 @@ class league(commands.Cog):
   @commands.command()
   async def sid(self, ctx, arg): 
       name = arg
+      if name == "?":
+        await ctx.send('Usage: ' + config("PREFIX") + 'sid [Enter summoner name to get summoner ID]')
+        return
       id = self.get_summoner_id(name)
       if id == 404:
         await ctx.send('Summoner not found')

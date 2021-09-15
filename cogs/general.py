@@ -1,13 +1,14 @@
 import random
 import re
 import asyncio
+from decouple import config
 from discord.ext import commands
 
 class general(commands.Cog):
   def __init__(self, client):
     self.client = client
 
-  usage = "Usage: $rtd [Number of Rolls] [Number of faces on the die]"
+  usage = "Usage: " + config('PREFIX') + "rtd [Number of Rolls] [Number of faces on the die]"
 
 
   @commands.Cog.listener()
@@ -17,7 +18,7 @@ class general(commands.Cog):
   @commands.command()
   async def help(self, ctx):
       user = ctx.author
-      helpCommandList = "Hi. I'm the Dice Bot. My prefix is $. \nList of Dice Bot Commands:\nrtd, sid, question\nType $[command] ? to get more help on a command!"
+      helpCommandList = ("Hi. I'm the Dice Bot. My prefix is " + config('PREFIX') +". \nList of Dice Bot Commands:\nrtd, sid, question\nType " + config('PREFIX') + "[command] ? to get more help on a command!")
       await user.send(helpCommandList)
       await ctx.message.add_reaction('👍')
     
@@ -89,7 +90,7 @@ class general(commands.Cog):
           quesHelp = True
 
       if quesHelp == True:
-        await ctx.message.channel.send("Usage: $question [Enter your yes or no question for me to answer, don't forget the question mark]")
+        await ctx.message.channel.send("Usage: " + config('PREFIX') + "question [Enter your yes or no question for me to answer, don't forget the question mark]")
         return
       if question == False:
         await ctx.message.channel.send("Hmm, either that isn't a question or you forgot a question mark. Try again.")

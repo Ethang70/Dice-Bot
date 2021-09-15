@@ -15,8 +15,9 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 token = config('TOKEN')
+prefix = config('PREFIX')
 client = discord.Client()
-client = commands.Bot(command_prefix="$", help_command=None)
+client = commands.Bot(command_prefix=prefix, help_command=None)
 
 # Load Extension
 @client.command()
@@ -29,11 +30,11 @@ async def unload(ctx, extension):
   client.unload_extension(f'cogs{extension}')
 
 # Loading all cogs
-print(bcolors.OKBLUE + "Loading Extensions" + bcolors.ENDC)
+print(bcolors.HEADER + "Loading Extensions" + bcolors.ENDC)
 for filename in os.listdir('./cogs'):
     if filename.endswith('.py'):
         client.load_extension(f'cogs.{filename[:-3]}')
-        print(bcolors.OKGREEN + filename + " found" + bcolors.ENDC)
+        print(bcolors.OKBLUE + filename + " found" + bcolors.ENDC)
 
 # Function to remove prefix from string
 def remove_prefix(text, prefix):
@@ -44,7 +45,7 @@ def remove_prefix(text, prefix):
 @client.event
 async def on_ready():
     print(bcolors.OKCYAN + 'We have logged in as {0.user}'.format(client) + bcolors.ENDC)
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you !rtd'))
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd'))
 
 @client.event # Triggers when a message is sent in the chat
 async def on_message(message): 

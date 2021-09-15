@@ -330,7 +330,7 @@ class Music(commands.Cog):
 
         ctx.voice_state.voice = await destination.connect()
 
-    @commands.command(name='leave', aliases=['disconnect'])
+    @commands.command(name='leave', aliases=['disconnect','dc','begone'])
     @commands.has_permissions(manage_guild=True)
     async def _leave(self, ctx: commands.Context):
         """Clears the queue and leaves the voice channel."""
@@ -341,7 +341,7 @@ class Music(commands.Cog):
         await ctx.voice_state.stop()
         del self.voice_states[ctx.guild.id]
 
-    @commands.command(name='volume')
+    @commands.command(name='volume', aliases=['vol'])
     async def _volume(self, ctx: commands.Context, *, volume: int):
         """Sets the volume of the player."""
 
@@ -354,7 +354,7 @@ class Music(commands.Cog):
         ctx.voice_state.volume = volume / 100
         await ctx.send('Volume of the player set to {}%'.format(volume))
 
-    @commands.command(name='now', aliases=['current', 'playing'])
+    @commands.command(name='now', aliases=['current', 'playing', 'np'])
     async def _now(self, ctx: commands.Context):
         """Displays the currently playing song."""
 
@@ -389,7 +389,7 @@ class Music(commands.Cog):
             ctx.voice_state.voice.stop()
             await ctx.message.add_reaction('⏹')
 
-    @commands.command(name='skip')
+    @commands.command(name='skip', aliases=['s'])
     async def _skip(self, ctx: commands.Context):
         """Vote to skip a song. The requester can automatically skip.
         3 skip votes are needed for the song to be skipped.
@@ -399,7 +399,7 @@ class Music(commands.Cog):
             return await ctx.send('Not playing any music right now...')
 
         voter = ctx.message.author
-        if voter == ctx.voice_state.current.requester:
+        if voter == ctx.voice_state.current.requester or ctx.author.guild_permissions.administrator:
             await ctx.message.add_reaction('⏭')
             ctx.voice_state.skip()
 
