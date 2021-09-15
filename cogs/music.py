@@ -272,6 +272,10 @@ class Music(commands.Cog):
     def __init__(self, client: commands.Bot):
         self.client = client
         self.voice_states = {}
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print('\033[92m' + 'Music Loaded' + '\033[0m')
         
     def get_voice_state(self, ctx: commands.Context):
         state = self.voice_states.get(ctx.guild.id)
@@ -446,7 +450,7 @@ class Music(commands.Cog):
         ctx.voice_state.songs.shuffle()
         await ctx.message.add_reaction('✅')
 
-    @commands.command(name='remove')
+    @commands.command(name='remove', aliases=['rm'])
     async def _remove(self, ctx: commands.Context, index: int):
         """Removes a song from the queue at a given index."""
 
@@ -470,7 +474,7 @@ class Music(commands.Cog):
         ctx.voice_state.loop = not ctx.voice_state.loop
         await ctx.message.add_reaction('✅')
 
-    @commands.command(name='play')
+    @commands.command(name='play', aliases=['p', 'go', '>'])
     async def _play(self, ctx: commands.Context, *, search: str):
         """Plays a song.
 

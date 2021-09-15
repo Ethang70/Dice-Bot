@@ -44,6 +44,7 @@ def remove_prefix(text, prefix):
 @client.event
 async def on_ready():
     print(bcolors.OKCYAN + 'We have logged in as {0.user}'.format(client) + bcolors.ENDC)
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you !rtd'))
 
 @client.event # Triggers when a message is sent in the chat
 async def on_message(message): 
