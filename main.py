@@ -19,6 +19,13 @@ prefix = config('PREFIX')
 client = discord.Client()
 client = commands.Bot(command_prefix=prefix, help_command=None)
 
+STEVE_ID = '<@224840296158986240>'
+JAMES_ID = '<@199812782982430720>'
+ETHAN_ID = '<@175524654318878721>'
+JORDY_ID = '<@233124478610178059>'
+JOSH_ID = '<@340675979288510465>'
+LIAM_ID = '<@425133380909268993>'
+
 # Load Extension
 @client.command()
 async def load(ctx, extension):
@@ -53,9 +60,23 @@ async def on_message(message):
     if message.author == client.user:
         return
         
-    if ('gn stev') == message.content or ("Goodnight Steve") == message.content:
-        SteveID = '<@224840296158986240>'
-        await message.channel.send('Goodnight %s' % SteveID)
+    if ('gn stev') == message.content.lower() or ('gn steve') == message.content.lower() or ("goodnight steve") == message.content.lower():
+        await message.channel.send('Goodnight %s' % STEVE_ID)
+
+    if ('gn james') == message.content.lower() or ("goodnight james") == message.content.lower():
+          await message.channel.send('Goodnight %s' % JAMES_ID)
+
+    if ('gn ethan') == message.content.lower() or ("goodnight ethan") == message.content.lower() or ('gn bthan') == message.content.lower():
+          await message.channel.send('Goodnight %s' % ETHAN_ID)
+    
+    if ('gn josh') == message.content.lower() or ("goodnight josh") == message.content.lower():
+          await message.channel.send('Goodnight %s' % JOSH_ID)
+
+    if ('gn jordy') == message.content.lower() or ("goodnight jordy") == message.content.lower() or ('gn jp') == message.content.lower():
+          await message.channel.send('Goodnight %s' % JORDY_ID)
+
+    if ('gn liam') == message.content.lower() or ("goodnight liam") == message.content.lower():
+          await message.channel.send('Goodnight %s' % LIAM_ID)
 
     if ('Gaming time') == message.content:
       await message.channel.send("It's gaming time")
