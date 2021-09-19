@@ -1,15 +1,13 @@
 import random
 import re
 import asyncio
+import discord
 from decouple import config
 from discord.ext import commands
 
 class general(commands.Cog):
   def __init__(self, client):
     self.client = client
-
-  usage = "Usage: " + config('PREFIX') + "rtd [Number of Rolls] [Number of faces on the die]"
-
 
   @commands.Cog.listener()
   async def on_ready(self):
@@ -24,41 +22,62 @@ class general(commands.Cog):
     
   # Command to roll X times with Y number of specified faces 
   @commands.command()
-  async def rtd(self, ctx, arg1=None, arg2=None):
-      if (arg1 == None):
-        await ctx.message.channel.send("Rolling...")
-        roll = random.randint(1,6)
-        await ctx.message.channel.send('You rolled a ' + str(roll))
-      elif (arg1 == "?") or (arg1 == "help"):
-        await ctx.message.channel.send(self.usage) # RTD Help
-      else:
-        noRoll = arg1
-        noFace = arg2
-        regexCheck = re.match("[0-9]", arg1)
-        isMatch = bool(regexCheck)
-        if isMatch:
-         # splitDiceCommand = diceCommand.split(" ")
-          if int(noRoll) == 1:
-            roll = random.randint(1, int(noFace))
-            await ctx.message.channel.send('You rolled a ' + str(roll))
-          else:
-            dieArr = [] # Define an empty array to store the rolls in
-            await ctx.message.channel.send("Rolling...")
-            for i in range(int(noRoll)):
+  async def rtd(self, ctx, noRoll=None, noFace=None):
+
+    usage = discord.Embed(title="Usage: ", description=config('PREFIX') + "rtd [Number of Rolls] [Number of faces on the die]", color=0x00ff00)
+
+    async def rolldie(self, ctx, noRoll, noFace):
+      regexCheck = re.match("[0-9]", noRoll)
+      isMatch = bool(regexCheck)
+      if isMatch:
+        embed = discord.Embed(title="Rolling the dice", description="Rolling " + noRoll + " dice with " + noFace + " faces", color=0x00ff00)
+        msg = await ctx.message.channel.send("Dice Roll: ",embed=embed)
+        id = msg.id
+        edited = False
+
+        if int(noRoll) == 1:
+          roll = random.randint(1, int(noFace))
+          embed = discord.Embed(title="You rolled a " + str(roll), color=0x00ff00)
+          message = await ctx.channel.fetch_message(id)
+          await message.edit(embed=embed)
+        else:
+          dieArr = [] # Define an empty array to store the rolls in
+          for i in range(int(noRoll)):
               roll = random.randint(1, int(noFace))
               dieArr.append(roll)
-            allDieRolls = ""
-            await ctx.message.channel.send(noRoll + " Rolls complete:")
-            for i in range(len(dieArr)):
-              allDieRolls += "(" + str(dieArr[i]) + ") "
-              if len(allDieRolls) > 1000:
-                await ctx.message.channel.send(allDieRolls) # Send now to avoid 4000 character limit
+          allDieRolls = ""
+          for i in range(len(dieArr)):
+            allDieRolls += "(" + str(dieArr[i]) + ") "
+            if len(allDieRolls) > 4000:
+              if edited is False:
+                embed = discord.Embed(title="Performed " + noRoll + " rolls with a " + noFace + "-sided die.", description=allDieRolls, color=0x00ff00)
+                message = await ctx.channel.fetch_message(id)
+                await message.edit(embed=embed)
                 allDieRolls = "" # Clear the message
-            if allDieRolls != "":
-              await ctx.message.channel.send(allDieRolls)
-            await ctx.message.channel.send("Performed " + noRoll + " rolls with a " + noFace + "-sided die.")
-        else:
-          await ctx.message.channel.send(self.usage) # RTD Help
+                edited = True
+              else:
+                embed = discord.Embed(description=allDieRolls, color=0x00ff00)
+                msg = await ctx.message.channel.send(embed=embed)
+                allDieRolls = "" # Clear the message
+          if edited is False:
+              embed = discord.Embed(title="Performed " + noRoll + " rolls with a " + noFace + "-sided die.", description=allDieRolls, color=0x00ff00)
+              message = await ctx.channel.fetch_message(id)
+              await message.edit(embed=embed)
+          else:
+            embed = discord.Embed(description=allDieRolls, color=0x00ff00)
+            msg = await ctx.message.channel.send(embed=embed)          
+      else:
+        await ctx.message.channel.send("Roll the dice: ", embed=usage) # RTD Help
+
+
+    if noRoll is None and noFace is None:
+      await rolldie(self, ctx, "1", "6")
+    elif noRoll == "?" or noRoll == "help":
+      await ctx.message.channel.send("Roll the dice: ",embed=usage) # RTD Help
+    elif noRoll is not None and noFace is None:
+      await rolldie(self, ctx, noRoll, "6")
+    else:
+      await rolldie(self, ctx, noRoll, noFace)
 
   # Command to test thumb reactions
   @commands.command()
