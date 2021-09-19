@@ -19,6 +19,7 @@ prefix = config('PREFIX')
 client = discord.Client()
 client = commands.Bot(command_prefix=prefix, help_command=None)
 
+# Discord User ID's
 STEVE_ID = '<@224840296158986240>'
 JAMES_ID = '<@199812782982430720>'
 ETHAN_ID = '<@175524654318878721>'
