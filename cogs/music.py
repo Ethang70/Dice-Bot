@@ -24,6 +24,7 @@ import discord
 import youtube_dl
 from async_timeout import timeout
 from discord.ext import commands
+from decouple import config
 
 class VoiceError(Exception):
     pass
@@ -508,6 +509,18 @@ class Music(commands.Cog):
         if ctx.voice_client:
             if ctx.voice_client.channel != ctx.author.voice.channel:
                 raise commands.CommandError('Bot is already in a voice channel.')
+
+    #@commands.Cog.listener()
+    #async def on_message(self, message, ctx: commands.Context):  
+    ## So the bot doesn't react to its own messages.
+    #  if ctx.message.author == ctx.client.user:
+    #    return
+    #
+    #  if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
+    #    await music._play(ctx, search=ctx.message.content)
+    #    return
+
+    #  await self.bot.process_commands(message)
 
 def setup(client):
      client.add_cog(Music(client))

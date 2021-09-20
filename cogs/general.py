@@ -24,20 +24,20 @@ class general(commands.Cog):
   @commands.command()
   async def rtd(self, ctx, noRoll=None, noFace=None):
 
-    usage = discord.Embed(title="Usage: ", description=config('PREFIX') + "rtd [Number of Rolls] [Number of faces on the die]", color=0x00ff00)
+    usage = discord.Embed(title="Usage: ", description=config('PREFIX') + "rtd [Number of Rolls] [Number of faces on the die]", color=int(config('COLOUR'), 16))
 
     async def rolldie(self, ctx, noRoll, noFace):
       regexCheck = re.match("[0-9]", noRoll)
       isMatch = bool(regexCheck)
       if isMatch:
-        embed = discord.Embed(title="Rolling the dice", description="Rolling " + noRoll + " dice with " + noFace + " faces", color=0x00ff00)
+        embed = discord.Embed(title="Rolling the dice", description="Rolling " + noRoll + " dice with " + noFace + " faces", color=int(config('COLOUR'), 16))
         msg = await ctx.message.channel.send("Dice Roll: ",embed=embed)
         id = msg.id
         edited = False
 
         if int(noRoll) == 1:
           roll = random.randint(1, int(noFace))
-          embed = discord.Embed(title="You rolled a " + str(roll), color=0x00ff00)
+          embed = discord.Embed(title="You rolled a " + str(roll), color=int(config('COLOUR'), 16))
           message = await ctx.channel.fetch_message(id)
           await message.edit(embed=embed)
         else:
@@ -50,21 +50,21 @@ class general(commands.Cog):
             allDieRolls += "(" + str(dieArr[i]) + ") "
             if len(allDieRolls) > 4000:
               if edited is False:
-                embed = discord.Embed(title="Performed " + noRoll + " rolls with a " + noFace + "-sided die.", description=allDieRolls, color=0x00ff00)
+                embed = discord.Embed(title="Performed " + noRoll + " rolls with a " + noFace + "-sided die.", description=allDieRolls, color=int(config('COLOUR'), 16))
                 message = await ctx.channel.fetch_message(id)
                 await message.edit(embed=embed)
                 allDieRolls = "" # Clear the message
                 edited = True
               else:
-                embed = discord.Embed(description=allDieRolls, color=0x00ff00)
+                embed = discord.Embed(description=allDieRolls, color=int(config('COLOUR'), 16))
                 msg = await ctx.message.channel.send(embed=embed)
                 allDieRolls = "" # Clear the message
           if edited is False:
-              embed = discord.Embed(title="Performed " + noRoll + " rolls with a " + noFace + "-sided die.", description=allDieRolls, color=0x00ff00)
+              embed = discord.Embed(title="Performed " + noRoll + " rolls with a " + noFace + "-sided die.", description=allDieRolls, color=int(config('COLOUR'), 16))
               message = await ctx.channel.fetch_message(id)
               await message.edit(embed=embed)
           else:
-            embed = discord.Embed(description=allDieRolls, color=0x00ff00)
+            embed = discord.Embed(description=allDieRolls, color=int(config('COLOUR'), 16))
             msg = await ctx.message.channel.send(embed=embed)          
       else:
         await ctx.message.channel.send("Roll the dice: ", embed=usage) # RTD Help
@@ -135,6 +135,6 @@ class general(commands.Cog):
         await ctx.message.channel.send("It's almost certain.")
       elif response == 10:
         await ctx.message.channel.send("No!")
-
+        
 def setup(client):
     client.add_cog(general(client))

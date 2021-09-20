@@ -16,8 +16,16 @@ class bcolors:
 
 token = config('TOKEN')
 prefix = config('PREFIX')
-client = discord.Client()
-client = commands.Bot(command_prefix=prefix, help_command=None)
+botColour = config("COLOUR")
+#client = discord.Client()
+
+def get_prefix(bot, message):
+    if message.channel.id == (config('MUSIC_CHANNEL_ID')):
+        return ""
+    else:
+        return prefix
+
+client = commands.Bot(command_prefix=get_prefix, help_command=None)
 
 # Discord User ID's
 STEVE_ID = '<@224840296158986240>'
@@ -58,38 +66,45 @@ async def on_ready():
 @client.event # Triggers when a message is sent in the chat
 async def on_message(message): 
     # So the bot doesn't react to its own messages.
-    if message.author == client.user:
-        return
-        
-    if ('gn stev') == message.content.lower() or ('gn steve') == message.content.lower() or ("goodnight steve") == message.content.lower():
+  if message.author == client.user:
+    return
+
+  if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
+  #  music = client.get_cog('Music')
+  #  ctx = await client.get_context(message)
+  #  await music._play(ctx, search=message.content)
+    return
+  else:
+
+    if 'gn stev' == message.content.lower() or ('gn steve') == message.content.lower() or ("goodnight steve") == message.content.lower():
         await message.channel.send('Goodnight %s' % STEVE_ID)
 
-    if ('gn james') == message.content.lower() or ("goodnight james") == message.content.lower():
+    if 'gn james' == message.content.lower() or ("goodnight james") == message.content.lower():
           await message.channel.send('Goodnight %s' % JAMES_ID)
 
-    if ('gn ethan') == message.content.lower() or ("goodnight ethan") == message.content.lower() or ('gn bthan') == message.content.lower():
+    if 'gn ethan' == message.content.lower() or ("goodnight ethan") == message.content.lower() or ('gn bthan') == message.content.lower():
           await message.channel.send('Goodnight %s' % ETHAN_ID)
     
-    if ('gn josh') == message.content.lower() or ("goodnight josh") == message.content.lower():
+    if 'gn josh' == message.content.lower() or ("goodnight josh") == message.content.lower():
           await message.channel.send('Goodnight %s' % JOSH_ID)
 
-    if ('gn jordy') == message.content.lower() or ("goodnight jordy") == message.content.lower() or ('gn jp') == message.content.lower():
+    if 'gn jordy' == message.content.lower() or ("goodnight jordy") == message.content.lower() or ('gn jp') == message.content.lower():
           await message.channel.send('Goodnight %s' % JORDY_ID)
 
-    if ('gn liam') == message.content.lower() or ("goodnight liam") == message.content.lower():
+    if 'gn liam' == message.content.lower() or ("goodnight liam") == message.content.lower():
           await message.channel.send('Goodnight %s' % LIAM_ID)
 
-    if ('Gaming time') == message.content:
+    if 'gaming time' == message.content.lower():
       await message.channel.send("It's gaming time")
       
-    if ("give me hacks in val") == message.content:
+    if "give me hacks in val" == message.content.lower():
         await message.channel.send("You now have hacks in Valorant")
     
-    if ("THANKS BOT").lower() == message.content.lower() or ("THANK YOU BOT").lower() == message.content.lower():
+    if "thanks bot" == message.content.lower() or "thank you bot" == message.content.lower():
         user = message.author.id
         await message.channel.send("No worries, <@%s>" % user)
     
-    if ("BAD BOT").lower() == message.content.lower():
+    if ("bad bot") == message.content.lower():
       await message.add_reaction('😢')
       await message.channel.send(":(")
       

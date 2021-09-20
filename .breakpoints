@@ -1,12 +1,3 @@
 {
-  "files": {
-    "cogs/general.py": [
-      {
-        "id": "b9bfb198-161c-4f86-8c89-aa23366d13eb",
-        "line": 140,
-        "version": 3000,
-        "index": 5864
-      }
-    ]
-  }
+  "files": {}
 }
