@@ -14,10 +14,10 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+version = "0.1"
 token = config('TOKEN')
 prefix = config('PREFIX')
 botColour = config("COLOUR")
-#client = discord.Client()
 
 def get_prefix(bot, message):
     if message.channel.id == (config('MUSIC_CHANNEL_ID')):
@@ -61,7 +61,7 @@ def remove_prefix(text, prefix):
 @client.event
 async def on_ready():
     print(bcolors.OKCYAN + 'We have logged in as {0.user}'.format(client) + bcolors.ENDC)
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd'))
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd | v' + version))
 
 @client.event # Triggers when a message is sent in the chat
 async def on_message(message): 
