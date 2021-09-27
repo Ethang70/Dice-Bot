@@ -3,6 +3,7 @@ import asyncio
 import discord
 from decouple import config
 from discord.ext import commands
+import functions
 
 class games(commands.Cog):
   def __init__(self, client):
@@ -12,7 +13,7 @@ class games(commands.Cog):
   @commands.command()
   async def gtn(self, ctx, lowRange=None, highRange=None):
 
-    usage = discord.Embed(title="Usage: ", description=config('PREFIX') + "gtn (Lower Range) (Upper Range)", color=int(config('COLOUR'), 16))
+    usage = functions.discordEmbed("Usage: ", config('PREFIX') + "gtn (Lower Range) (Upper Range)", int(config('COLOUR'), 16))
     noArgs = False
     guessCounter = 0
     oldAnswer = ""

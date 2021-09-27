@@ -270,13 +270,26 @@ class VoiceState:
 
 
 class Music(commands.Cog):
-    def __init__(self, client: commands.Bot):
+    def __init__(self, client):
         self.client = client
         self.voice_states = {}
 
     @commands.Cog.listener()
     async def on_ready(self):
         print('\033[92m' + 'Music Loaded' + '\033[0m')
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+      client = self.client
+      #ctx = await client.get_context(message)
+      # So the bot doesn't react to its own messages.
+      if message.author == client.user:
+        return
+      
+      if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
+        #await self._play(ctx, search=message.content)
+        return
+      await self.client.process_commands(message)
         
     def get_voice_state(self, ctx: commands.Context):
         state = self.voice_states.get(ctx.guild.id)
@@ -509,18 +522,6 @@ class Music(commands.Cog):
         if ctx.voice_client:
             if ctx.voice_client.channel != ctx.author.voice.channel:
                 raise commands.CommandError('Bot is already in a voice channel.')
-
-    #@commands.Cog.listener()
-    #async def on_message(self, message, ctx: commands.Context):  
-    ## So the bot doesn't react to its own messages.
-    #  if ctx.message.author == ctx.client.user:
-    #    return
-    #
-    #  if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
-    #    await music._play(ctx, search=ctx.message.content)
-    #    return
-
-    #  await self.bot.process_commands(message)
 
 def setup(client):
      client.add_cog(Music(client))

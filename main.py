@@ -46,7 +46,7 @@ async def unload(ctx, extension):
   client.unload_extension(f'cogs{extension}')
 
 # Loading all cogs
-print(bcolors.HEADER + "Loading Extensions" + bcolors.ENDC)
+print(bcolors.HEADER + "Loading Extensions || Bot running version " + version + bcolors.ENDC)
 for filename in os.listdir('./cogs'):
     if filename.endswith('.py'):
         client.load_extension(f'cogs.{filename[:-3]}')
@@ -68,13 +68,6 @@ async def on_message(message):
     # So the bot doesn't react to its own messages.
   if message.author == client.user:
     return
-
-  if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
-  #  music = client.get_cog('Music')
-  #  ctx = await client.get_context(message)
-  #  await music._play(ctx, search=message.content)
-    return
-  else:
 
     if 'gn stev' == message.content.lower() or ('gn steve') == message.content.lower() or ("goodnight steve") == message.content.lower():
         await message.channel.send('Goodnight %s' % STEVE_ID)
