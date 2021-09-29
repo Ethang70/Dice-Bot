@@ -28,12 +28,12 @@ def get_prefix(bot, message):
 client = commands.Bot(command_prefix=get_prefix, help_command=None)
 
 # Discord User ID's
-STEVE_ID = '<@224840296158986240>'
-JAMES_ID = '<@199812782982430720>'
-ETHAN_ID = '<@175524654318878721>'
-JORDY_ID = '<@233124478610178059>'
-JOSH_ID = '<@340675979288510465>'
-LIAM_ID = '<@425133380909268993>'
+STEVE_ID = config('STEVE')
+JAMES_ID = config('JAMES')
+ETHAN_ID = config('ETHAN')
+JORDY_ID = config('JORDY')
+JOSH_ID = config('JOSH')
+LIAM_ID = config('LIAM')
 
 # Load Extension
 @client.command()
@@ -68,40 +68,40 @@ async def on_message(message):
     # So the bot doesn't react to its own messages.
   if message.author == client.user:
     return
+  
+  if 'gn stev' == message.content.lower() or ('gn steve') == message.content.lower() or ("goodnight steve") == message.content.lower():
+      await message.channel.send('Goodnight %s' % STEVE_ID)
 
-    if 'gn stev' == message.content.lower() or ('gn steve') == message.content.lower() or ("goodnight steve") == message.content.lower():
-        await message.channel.send('Goodnight %s' % STEVE_ID)
+  if 'gn james' == message.content.lower() or ("goodnight james") == message.content.lower():
+        await message.channel.send('Goodnight %s' % JAMES_ID)
 
-    if 'gn james' == message.content.lower() or ("goodnight james") == message.content.lower():
-          await message.channel.send('Goodnight %s' % JAMES_ID)
+  if 'gn ethan' == message.content.lower() or ("goodnight ethan") == message.content.lower() or ('gn bthan') == message.content.lower():
+        await message.channel.send('Goodnight %s' % ETHAN_ID)
+  
+  if 'gn josh' == message.content.lower() or ("goodnight josh") == message.content.lower():
+        await message.channel.send('Goodnight %s' % JOSH_ID)
 
-    if 'gn ethan' == message.content.lower() or ("goodnight ethan") == message.content.lower() or ('gn bthan') == message.content.lower():
-          await message.channel.send('Goodnight %s' % ETHAN_ID)
+  if 'gn jordy' == message.content.lower() or ("goodnight jordy") == message.content.lower() or ('gn jp') == message.content.lower():
+        await message.channel.send('Goodnight %s' % JORDY_ID)
+
+  if 'gn liam' == message.content.lower() or ("goodnight liam") == message.content.lower():
+        await message.channel.send('Goodnight %s' % LIAM_ID)
+
+  if 'gaming time' == message.content.lower():
+    await message.channel.send("It's gaming time")
     
-    if 'gn josh' == message.content.lower() or ("goodnight josh") == message.content.lower():
-          await message.channel.send('Goodnight %s' % JOSH_ID)
-
-    if 'gn jordy' == message.content.lower() or ("goodnight jordy") == message.content.lower() or ('gn jp') == message.content.lower():
-          await message.channel.send('Goodnight %s' % JORDY_ID)
-
-    if 'gn liam' == message.content.lower() or ("goodnight liam") == message.content.lower():
-          await message.channel.send('Goodnight %s' % LIAM_ID)
-
-    if 'gaming time' == message.content.lower():
-      await message.channel.send("It's gaming time")
-      
-    if "give me hacks in val" == message.content.lower():
-        await message.channel.send("You now have hacks in Valorant")
-    
-    if "thanks bot" == message.content.lower() or "thank you bot" == message.content.lower():
-        user = message.author.id
-        await message.channel.send("No worries, <@%s>" % user)
-    
-    if ("bad bot") == message.content.lower():
-      await message.add_reaction('😢')
-      await message.channel.send(":(")
+  if "give me hacks in val" == message.content.lower():
+      await message.channel.send("You now have hacks in Valorant")
+  
+  if "thanks bot" == message.content.lower() or "thank you bot" == message.content.lower():
+      user = message.author.id
+      await message.channel.send("No worries, <@%s>" % user)
+  
+  if ("bad bot") == message.content.lower():
+    await message.add_reaction('😢')
+    await message.channel.send(":(")
       
   
-    await client.process_commands(message)
+  await client.process_commands(message)
 
 client.run(token)

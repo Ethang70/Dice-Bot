@@ -19,6 +19,7 @@ import functools
 import itertools
 import math
 import random
+import functions
 
 import discord
 import youtube_dl
@@ -153,9 +154,7 @@ class Song:
         self.requester = source.requester
 
     def create_embed(self):
-        embed = (discord.Embed(title='Now playing',
-                            description='```css\n{0.source.title}\n```'.format(self),
-                            color=discord.Color.blurple())
+        embed = (functions.discordEmbed('Now playing', '```css\n{0.source.title}\n```'.format(self), discord.Color.blurple())
                 .add_field(name='Duration', value=self.source.duration)
                 .add_field(name='Requested by', value=self.requester.mention)
                 .add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(self))
@@ -278,18 +277,18 @@ class Music(commands.Cog):
     async def on_ready(self):
         print('\033[92m' + 'Music Loaded' + '\033[0m')
 
-    @commands.Cog.listener()
-    async def on_message(self, message):
-      client = self.client
-      #ctx = await client.get_context(message)
-      # So the bot doesn't react to its own messages.
-      if message.author == client.user:
-        return
+    # @commands.Cog.listener()
+    # async def on_message(self, message):
+    #   client = self.client
+    #   #ctx = await client.get_context(message)
+    #   # So the bot doesn't react to its own messages.
+    #   if message.author == client.user:
+    #     return
       
-      if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
-        #await self._play(ctx, search=message.content)
-        return
-      await self.client.process_commands(message)
+    #   if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
+    #     #await self._play(ctx, search=message.content)
+    #     return
+    #   await self.client.process_commands(message)
         
     def get_voice_state(self, ctx: commands.Context):
         state = self.voice_states.get(ctx.guild.id)
