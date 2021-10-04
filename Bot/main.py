@@ -14,7 +14,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-version = "0.2"
+version = "0.3a"
 token = config('TOKEN')
 prefix = config('PREFIX')
 botColour = config("COLOUR")

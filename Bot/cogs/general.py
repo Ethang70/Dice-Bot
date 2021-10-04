@@ -137,6 +137,25 @@ class general(commands.Cog):
         await ctx.message.channel.send("It's almost certain.")
       elif response == 10:
         await ctx.message.channel.send("No!")
-        
+  
+  @commands.command()
+  async def clear(self,ctx, amount: int):
+    if not ctx.author.guild_permissions.administrator:
+      ctx.message.send("You have insufficent permissions.")
+      return
+    
+    amount = int(amount)
+    
+    if(amount < 1):
+      return ctx.message.send("Enter a positive number")
+    if(amount > 1000):
+      return ctx.message.send("Enter a smaller number")
+
+    await ctx.channel.purge(limit=amount)
+    
+
+
+
+
 def setup(client):
     client.add_cog(general(client))
