@@ -9,6 +9,7 @@ from asyncio.tasks import current_task
 import re
 
 import discord
+from discord import emoji
 import lavalink
 import functions
 import asyncio
@@ -102,7 +103,6 @@ class Music(commands.Cog):
             bot.lavalink.add_node('127.0.0.1', 2333, 'youshallnotpass', 'eu', 'default-node')  # Host, Port, Password, Region, Name
 
         lavalink.add_event_hook(self.track_hook)
-        lavalink.add_event_hook(self.track_hook_end)
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -125,32 +125,49 @@ class Music(commands.Cog):
         return guild_check
 
     async def update_embed(self, player):
+        prefix = config("PREFIX")
         channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
         message = await channel.fetch_message(int(config('MUSIC_CHANNEL_MSG_ID')))
         if not player.is_connected or not player.is_playing:
-            embed = functions.discordEmbed("No song playing currently", "Status: ", int(config('COLOUR'), 16))
-            await message.edit(content="Queue: ",embed=embed)
+            embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
+            embed.add_field(name="Queue: ", value="Empty")
+            embed.add_field(name="Status: ", value="Idle")
+            embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q. " + "(Seek and np coming soon)")
+            await message.edit(content="To add a song join voice, and !p <SONG>",embed=embed)
             return
         else:
+            currentSong = player.current
             queue = player.queue
+            embed = discord.Embed(title = "Playing: " + currentSong.title, url=currentSong.uri, color = int(config('COLOUR'), 16))
 
             if len(queue) == 0:
-                qDesc ='Queue: '
+                qDesc ='Empty'
             else:
-                qDesc ='Queue: \n'
-                for i, song in enumerate(queue):
-                    qDesc += str(i + 1) + ". " + song.title + '\n'
+                qDesc =''
+                if len(queue) > 8:
+                    for i, song in enumerate(queue[0:8]):
+                        qDesc += f'[{str(i + 1) + ". " + song.title}]({song.uri})' + '\n'
+                    offset = len(queue) - 8
+                    qDesc += "and " + str(offset) + " more track(s)\n"
+                else:
+                    for i, song in enumerate(queue):
+                        qDesc += f'[{str(i + 1) + ". " + song.title}]({song.uri})' + '\n'
             
             if player.paused:
-                status = "Status: Paused"
+                status = "Paused\n"
             else:
-                status = "Status: Playing"
-
-            currentSong = player.current
-            title = 'Playing: ' + f'[{currentSong.title}]({currentSong.uri})'
-
-            embed = functions.discordEmbed(title, status, int(config('COLOUR'), 16))
-            await message.edit(content=qDesc, embed=embed)
+                status = "Playing\n"
+            
+            if player.repeat:
+                status += " 🔁"
+            
+            if player.shuffle:
+                status += "  🔀"
+            
+            embed.add_field(name="Queue: ", value=qDesc, inline=True)
+            embed.add_field(name="Status: ", value=status)
+            embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q. " + "(Seek and np coming soon)" )
+            await message.edit(embed=embed)
         
     async def cog_command_error(self, ctx, error):
         if isinstance(error, commands.CommandInvokeError):
@@ -207,13 +224,9 @@ class Music(commands.Cog):
             guild = self.bot.get_guild(guild_id)
             await self.update_embed(event.player)
             await guild.voice_client.disconnect(force=True)
-
-    async def track_hook_end(self, event):
-        if isinstance(event, lavalink.events.TrackEndEvent):
+        elif isinstance(event, lavalink.events.TrackStartEvent):
             player = event.player
             await self.update_embed(player)
-
-
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -226,6 +239,39 @@ class Music(commands.Cog):
         await asyncio.sleep(0.5)
         await message.delete()
       #await client.process_commands(message)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, reaction):
+        client = self.bot
+        message_id = int(config('MUSIC_CHANNEL_MSG_ID'))
+        ctx = reaction
+        ctx.channel = await self.bot.fetch_channel(reaction.channel_id)
+        ctx.message = await ctx.channel.fetch_message(reaction.message_id)
+        ctx = await client.get_context(ctx.message)
+        ctx.author = reaction.member
+        if reaction.message_id != message_id:
+            return
+        
+        emoji = str(reaction.emoji)
+
+        if emoji == "⏯":
+            await ctx.message.remove_reaction(emoji, ctx.author)
+            return await self._pause(ctx)
+        elif emoji == "⏹":
+            await ctx.message.remove_reaction(emoji, ctx.author)
+            return await self.disconnect(ctx)
+        elif emoji == "⏭":
+            await ctx.message.remove_reaction(emoji, ctx.author)
+            return await self._skip(ctx)
+        elif emoji == "🔁":
+            await ctx.message.remove_reaction(emoji, ctx.author)
+            return await self.loop(ctx)
+        elif emoji == "🔀":
+            await ctx.message.remove_reaction(emoji, ctx.author)
+            return await self.shuffle(ctx)
+        await ctx.message.remove_reaction(emoji, ctx.author)
+        await client.process_commands(ctx.message)
+
 
 
     @commands.command(aliases=['p'])
@@ -325,45 +371,48 @@ class Music(commands.Cog):
 
     @commands.command(aliases=['s'])
     async def skip(self, ctx):
+        await self._skip(ctx)
+
+    async def _skip(self, ctx):
         #if ctx.author.guild_permissions.administrator:  
-            """ Skips the current song """
-            player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        """ Skips the current song """
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-            if not player.is_connected:
-                # We can't skip, if we're not connected.
-                msg = await ctx.send('Not connected.')
-                await self.update_embed(player)
-                await asyncio.sleep(1)
-                await msg.delete()
-                return
-
-            if not player.is_playing:
-                # We can't skip if nothing is playing.
-                msg = await ctx.send('No songs currently playing')
-                await self.update_embed(player)
-                await asyncio.sleep(1)
-                await msg.delete()
-                return
-
-            if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
-                # Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
-                # may not disconnect the bot.
-                msg = await ctx.send('You\'re not in my voicechannel!')
-                await self.update_embed(player)
-                await asyncio.sleep(1)
-                await msg.delete()
-                
-                return
-            
-            currentTrack = player.current
-            #Skips current track
-            await player.skip()
+        if not player.is_connected:
+            # We can't skip, if we're not connected.
+            msg = await ctx.send('Not connected.')
             await self.update_embed(player)
-
-            embed = functions.discordEmbed("Skipped", currentTrack.title + " was skipped", int(config('COLOUR'), 16))
-            msg = await ctx.message.channel.send(embed=embed)
             await asyncio.sleep(1)
             await msg.delete()
+            return
+
+        if not player.is_playing:
+            # We can't skip if nothing is playing.
+            msg = await ctx.send('No songs currently playing')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            await msg.delete()
+            return
+
+        if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
+            # Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
+            # may not disconnect the bot.
+            msg = await ctx.send('You\'re not in my voicechannel!')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            await msg.delete()
+            
+            return
+        
+        currentTrack = player.current
+        #Skips current track
+        await player.skip()
+        await self.update_embed(player)
+
+        embed = functions.discordEmbed("Skipped", currentTrack.title + " was skipped", int(config('COLOUR'), 16))
+        msg = await ctx.message.channel.send(embed=embed)
+        await asyncio.sleep(1)
+        await msg.delete()
             
 
         #else:
@@ -371,12 +420,126 @@ class Music(commands.Cog):
         #    msg = await ctx.message.channel.send(embed=embed)
         #    await self.update_embed(player)
         #    await asyncio.sleep(2)
-        #    await msg.delete()
+        #    await msg.delete()    
 
-        
+    async def shuffle(self, ctx):
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        if not player.is_connected:
+            # We can't skip, if we're not connected.
+            msg = await ctx.send('Not connected.')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            await msg.delete()
+            return
 
-    @commands.command(aliases=['||'])
-    async def pause(self, ctx):
+        if not player.is_playing:
+                # We can't skip if nothing is playing.
+                msg = await ctx.send('No songs currently playing')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
+                # Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
+                # may not disconnect the bot.
+                msg = await ctx.send('You\'re not in my voicechannel!')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        player.shuffle = not player.shuffle
+        await self.update_embed(player)
+        if player.shuffle:
+            embed = functions.discordEmbed(None, "Queue will now be shuffled", int(config('COLOUR'), 16))
+        else:
+            embed = functions.discordEmbed(None, "Queue will no longer be shuffled", int(config('COLOUR'), 16))    
+        msg = await ctx.message.channel.send(embed=embed)
+        await asyncio.sleep(1)
+        await msg.delete()
+
+    async def loop(self, ctx):
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        if not player.is_connected:
+            # We can't skip, if we're not connected.
+            msg = await ctx.send('Not connected.')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            await msg.delete()
+            return
+
+        if not player.is_playing:
+                # We can't skip if nothing is playing.
+                msg = await ctx.send('No songs currently playing')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
+                # Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
+                # may not disconnect the bot.
+                msg = await ctx.send('You\'re not in my voicechannel!')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        player.repeat = not player.repeat
+        await self.update_embed(player)
+        if player.repeat:
+            embed = functions.discordEmbed(None, "Queue is on loop", int(config('COLOUR'), 16))
+        else:
+            embed = functions.discordEmbed(None, "Queue no longer looped", int(config('COLOUR'), 16))    
+        msg = await ctx.message.channel.send(embed=embed)
+        await asyncio.sleep(1)
+        await msg.delete()
+
+    @commands.command(aliases=['rm'])
+    async def remove(self, ctx, index: int):
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        if not player.is_connected:
+            # We can't skip, if we're not connected.
+            msg = await ctx.send('Not connected.')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            await msg.delete()
+            return
+
+        if not player.is_playing:
+                # We can't skip if nothing is playing.
+                msg = await ctx.send('No songs currently playing')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
+                # Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
+                # may not disconnect the bot.
+                msg = await ctx.send('You\'re not in my voicechannel!')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        if index > len(player.queue) or index < 1:
+            msg = await ctx.send('Index has to be >=1 and <=queue size')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            return await msg.delete()
+
+        index = index - 1
+        removed = player.queue.pop(index)
+        await self.update_embed(player)
+        embed = functions.discordEmbed("Removed", removed.title +' from the queue' , int(config('COLOUR'), 16))
+        msg = await ctx.message.channel.send(embed=embed)
+        await asyncio.sleep(1)
+        await msg.delete()
+
+
+    async def _pause(self, ctx):
       """ Pauses/Unpauses current song """
       player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
@@ -421,6 +584,10 @@ class Music(commands.Cog):
       await asyncio.sleep(1)
       await msg.delete()
 
+    @commands.command(aliases=['||'])
+    async def pause(self, ctx):
+        self._pause(ctx)
+
     @commands.command(aliases=['||>'])
     async def unpause(self, ctx):
       """ Pauses/Unpauses current song """
@@ -464,7 +631,7 @@ class Music(commands.Cog):
       msg = await ctx.message.channel.send(embed=embed)
       await self.update_embed(player)
       await asyncio.sleep(1)
-      await msg.delete()
+      await msg.delete()      
 
     @commands.command(aliases=['q'])
     async def queue(self, ctx):
@@ -518,10 +685,68 @@ class Music(commands.Cog):
       await asyncio.sleep(1)
       await msg.delete()
 
+    @commands.command(aliases=['mv'])
+    async def move(self, ctx, current: int, new: int):
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        if not player.is_connected:
+            # We can't skip, if we're not connected.
+            msg = await ctx.send('Not connected.')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            await msg.delete()
+            return
+
+        if not player.is_playing:
+                # We can't skip if nothing is playing.
+                msg = await ctx.send('No songs currently playing')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
+                # Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
+                # may not disconnect the bot.
+                msg = await ctx.send('You\'re not in my voicechannel!')
+                await self.update_embed(player)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+        current = current - 1
+        new = new - 1
+
+        if current > len(player.queue)-1 or current < 0:
+            msg = await ctx.send('Current index out of bounds')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            return await msg.delete()
+        
+        if new > len(player.queue)-1 or new < 0:
+            msg = await ctx.send('New index out of bounds')
+            await self.update_embed(player)
+            await asyncio.sleep(1)
+            return await msg.delete()
+
+        player.queue.insert(new, player.queue.pop(current))
+        moved = player.queue[new]
+        await self.update_embed(player)
+        embed = functions.discordEmbed("Moved ", moved.title +' moved from ' + str(current + 1) + " to " + str(new + 1) , int(config('COLOUR'), 16))
+        msg = await ctx.message.channel.send(embed=embed)
+        await asyncio.sleep(1)
+        await msg.delete()
+
     @commands.command()
     async def update(self,ctx):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
-        self.update_embed(player)
+        await self.update_embed(player)
+        channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+        message = await channel.fetch_message(int(config('MUSIC_CHANNEL_MSG_ID')))
+        await message.add_reaction('⏯')
+        await message.add_reaction('⏹')
+        await message.add_reaction('⏭')
+        await message.add_reaction('🔁')
+        await message.add_reaction('🔀')
 
     @commands.command()
     async def setup(self, ctx):
