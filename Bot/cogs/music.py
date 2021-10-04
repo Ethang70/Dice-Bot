@@ -249,24 +249,29 @@ class Music(commands.Cog):
         ctx.message = await ctx.channel.fetch_message(reaction.message_id)
         ctx = await client.get_context(ctx.message)
         ctx.author = reaction.member
+
+        if ctx.message.author == client.user:
+          return
+        
+        
         if reaction.message_id != message_id:
             return
         
-        emoji = str(reaction.emoji)
+        emojir = str(reaction.emoji)
 
-        if emoji == "⏯":
+        if emojir == "⏯":
             await ctx.message.remove_reaction(emoji, ctx.author)
             return await self._pause(ctx)
-        elif emoji == "⏹":
+        elif emojir == "⏹":
             await ctx.message.remove_reaction(emoji, ctx.author)
             return await self.disconnect(ctx)
-        elif emoji == "⏭":
+        elif emojir == "⏭":
             await ctx.message.remove_reaction(emoji, ctx.author)
             return await self._skip(ctx)
-        elif emoji == "🔁":
+        elif emojir == "🔁":
             await ctx.message.remove_reaction(emoji, ctx.author)
             return await self.loop(ctx)
-        elif emoji == "🔀":
+        elif emojir == "🔀":
             await ctx.message.remove_reaction(emoji, ctx.author)
             return await self.shuffle(ctx)
         await ctx.message.remove_reaction(emoji, ctx.author)
