@@ -71,7 +71,7 @@ python-versions = "*"
 
 [[package]]
 name = "discord-together"
-version = "1.1.1"
+version = "1.1.2"
 description = "Utilize the BETA Discord VC Party Games feature!"
 category = "main"
 optional = false
@@ -190,7 +190,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "5f6825d0c70f3120248603ef07e7a15906d4be89f9b4f4daa045e7f6be626a99"
+content-hash = "1d3583cbec6a03216323a5aaa613440909c9dfe8db49ee39833481b683b7b129"
 
 [metadata.files]
 aiohttp = [
@@ -296,8 +296,8 @@ discord = [
     {file = "discord-1.7.3.tar.gz", hash = "sha256:846dd3d66888c2e0a8bd9120d8778a0fe088c003a7f6451668497f14e322a304"},
 ]
 discord-together = [
-    {file = "discord-together-1.1.1.tar.gz", hash = "sha256:518ba6a6ca02f2b1c62441b0ccde87d0ce766ae2e56bd412ffbb7a3fbef24091"},
-    {file = "discord_together-1.1.1-py3-none-any.whl", hash = "sha256:5675b4f0d2cfd30fa7703477a5691e41981dc4378972bc3dc0920de871a3f70b"},
+    {file = "discord-together-1.1.2.tar.gz", hash = "sha256:e47351f07b77e6ba36259d0170024c709b9923b1473960d725a22f3e6e8185cd"},
+    {file = "discord_together-1.1.2-py3-none-any.whl", hash = "sha256:7d247642ed40f7f86f2da61d00cd2c7f8853714f64c7f84d04775d86639d2521"},
 ]
 "discord.py" = [
     {file = "discord.py-1.7.3-py3-none-any.whl", hash = "sha256:c6f64db136de0e18e090f6752ea68bdd4ab0a61b82dfe7acecefa22d6477bb0c"},
