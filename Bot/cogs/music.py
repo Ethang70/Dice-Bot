@@ -250,9 +250,8 @@ class Music(commands.Cog):
         ctx = await client.get_context(ctx.message)
         ctx.author = reaction.member
 
-        if ctx.message.author == client.user:
+        if ctx.author == client.user:
           return
-        
         
         if reaction.message_id != message_id:
             return
@@ -260,21 +259,21 @@ class Music(commands.Cog):
         emojir = str(reaction.emoji)
 
         if emojir == "⏯":
-            await ctx.message.remove_reaction(emoji, ctx.author)
+            await ctx.message.remove_reaction(emojir, ctx.author)
             return await self._pause(ctx)
         elif emojir == "⏹":
-            await ctx.message.remove_reaction(emoji, ctx.author)
+            await ctx.message.remove_reaction(emojir, ctx.author)
             return await self.disconnect(ctx)
         elif emojir == "⏭":
-            await ctx.message.remove_reaction(emoji, ctx.author)
+            await ctx.message.remove_reaction(emojir, ctx.author)
             return await self._skip(ctx)
         elif emojir == "🔁":
-            await ctx.message.remove_reaction(emoji, ctx.author)
+            await ctx.message.remove_reaction(emojir, ctx.author)
             return await self.loop(ctx)
         elif emojir == "🔀":
-            await ctx.message.remove_reaction(emoji, ctx.author)
+            await ctx.message.remove_reaction(emojir, ctx.author)
             return await self.shuffle(ctx)
-        await ctx.message.remove_reaction(emoji, ctx.author)
+        await ctx.message.remove_reaction(emojir, ctx.author)
         await client.process_commands(ctx.message)
 
 
