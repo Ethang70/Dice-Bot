@@ -1,6 +1,4 @@
 from asyncio.tasks import current_task
-import re
-
 import discord
 from discord import emoji
 import lavalink
@@ -10,6 +8,8 @@ import asyncio
 from decouple import config
 from discord.ext import commands
 from lavalink.events import TrackEndEvent
+import re
+import math
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
@@ -212,7 +212,7 @@ class Music(commands.Cog):
             
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
             embed.add_field(name="Status: ", value=status)
-            embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q. " + "(Seek and np coming soon)" )
+            embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
             await message.edit(embed=embed)
 
     def check_conditions(self, ctx, player):
@@ -371,6 +371,14 @@ class Music(commands.Cog):
         await asyncio.sleep(1)
         await msg.delete()
 
+    def get_sec(self, time_str :str):
+        """Get Seconds from time."""
+        seconds= 0
+        for part in time_str.split(':'):
+            seconds= seconds*60 + int(part, 10)
+        return seconds
+
+
     @commands.Cog.listener()
     async def on_message(self, message):
       client = self.bot
@@ -521,7 +529,7 @@ class Music(commands.Cog):
         await msg.delete() 
 
     @commands.command(aliases=['q'])
-    async def queue(self, ctx):
+    async def queue(self, ctx, page : int=1):
       """ The Queue """
       player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
@@ -537,7 +545,7 @@ class Music(commands.Cog):
       queue = player.queue
 
       if len(queue) == 0:
-            msg = await ctx.send('No songs in queue')
+            msg = await ctx.send('No songs in queue | Why not queue something?')
             await self.update_embed(player)
             await asyncio.sleep(1)
             await msg.delete()
@@ -545,14 +553,21 @@ class Music(commands.Cog):
       
       qDesc = ''
 
-      for i, song in enumerate(queue):
+      items_per_page = 10
+      pages = math.ceil(len(player.queue) / items_per_page)
+
+      start = (page - 1) * items_per_page
+      end = start + items_per_page
+
+      for i, song in enumerate(queue[start:end], start=start):
           qDesc += f'[{str(i + 1) + ". " + song.title}]({song.uri})' + '\n'
           
     
       embed = functions.discordEmbed("Queue", qDesc, int(config('COLOUR'), 16))
+      embed.set_footer(text=f'Viewing Page {page}/{pages}')
       msg = await ctx.message.channel.send(embed=embed)
       await self.update_embed(player)
-      await asyncio.sleep(1)
+      await asyncio.sleep(3)
       await msg.delete()
 
     @commands.command(aliases=['mv'])
@@ -590,6 +605,92 @@ class Music(commands.Cog):
         msg = await ctx.message.channel.send(embed=embed)
         await asyncio.sleep(1)
         await msg.delete()
+
+    @commands.command(aliases=['np', 'n'])
+    async def now(self, ctx):
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        if not self.check_conditions(ctx, player): 
+            return
+        elif not self.music_ch_check(ctx):
+            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            msg = await ctx.send('Please use this command in ' + channel.mention)
+            await asyncio.sleep(1)
+            await msg.delete()
+            return
+
+        song = 'Nothing'
+
+        if player.current:
+            pos = lavalink.format_time(player.position)
+            if player.current.stream:
+                dur = 'LIVE'
+            else:
+                dur = lavalink.format_time(player.current.duration)
+            song = f'**[{player.current.title}]({player.current.uri})**\n({pos}/{dur})'
+
+        embed = discord.Embed(color= int(config('COLOUR'), 16), title='Now Playing', description=song)
+        msg = await ctx.send(embed=embed)
+        await asyncio.sleep(3)
+        await msg.delete()
+
+    @commands.command()
+    async def seek(self, ctx, time):
+        player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+        if not self.check_conditions(ctx, player):
+            return
+        elif not self.music_ch_check(ctx):
+            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            msg = await ctx.send('Please use this command in ' + channel.mention)
+            await asyncio.sleep(1)
+            await msg.delete()
+            return
+
+        time_sec = self.get_sec(str(time))
+
+        if not time_sec:
+            return await ctx.send('You need to specify a time to skip to')
+
+        time_ms = time_sec * 1000
+
+        await player.seek(time_ms)
+
+        msg = await ctx.send(f'Moved track to **{lavalink.format_time(time_ms)}**')
+        await asyncio.sleep(1)
+        await msg.delete()
+
+    @commands.command(aliases=['vol'])
+    async def volume(self, ctx, volume: int=None):
+        if ctx.author.guild_permissions.administrator: 
+            player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+            if not self.check_conditions(ctx, player):
+                return
+            elif not self.music_ch_check(ctx):
+                channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+                msg = await ctx.send('Please use this command in ' + channel.mention)
+                await asyncio.sleep(1)
+                await msg.delete()
+                return
+
+            if volume > 100:
+                msg = await ctx.send(f'Too large')
+                await asyncio.sleep(1)
+                return await msg.delete()
+
+            if not volume:
+                msg = await ctx.send(f'🔈 | {player.volume}%')
+                await asyncio.sleep(1)
+                return await msg.delete()
+
+            await player.set_volume(volume)
+            msg = await ctx.send(f'🔈 | Set to {player.volume}%')
+            await asyncio.sleep(1)
+            await msg.delete()
+        else:
+            msg = await ctx.send(f'You do not have the permissions to use this command')
+            await asyncio.sleep(1)
+            await msg.delete()
+
 
     @commands.command()
     async def update(self,ctx):
