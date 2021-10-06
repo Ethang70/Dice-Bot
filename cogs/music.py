@@ -194,7 +194,7 @@ class Music(commands.Cog):
             currentSong = player.current
             queue = player.queue
             embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + lavalink.format_time(player.current.duration) + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
-            thumbnail = "https://i.ytimg.com/vi/" + identifier + "/hqresdefault.jpg"
+            thumbnail = "https://i.ytimg.com/vi/" + identifier + "/hqdefault.jpg"
 
             if len(queue) == 0:
                 qDesc ='Empty'
