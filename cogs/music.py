@@ -443,7 +443,6 @@ class Music(commands.Cog):
         ctx.message = await ctx.channel.fetch_message(reaction.message_id)
         ctx = await client.get_context(ctx.message)
         ctx.author = reaction.member
-        print("yes")
 
         # So the bot doesnt react to own reactions
         if ctx.author == client.user:
@@ -470,7 +469,6 @@ class Music(commands.Cog):
         if len(result) > 0:
           for x in result:
             message_id = x[3]
-            print(x[3])
 
           if reaction.message_id != message_id:
               return

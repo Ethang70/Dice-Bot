@@ -251,10 +251,8 @@ class general(commands.Cog):
 
     if len(result) > 0:
         for x in result:
-          #print(x)
           channel_id = x[2]
           message_id = x[3]
-          print("GID = " + str(guild_id) + " CID = " + str(channel_id) + " MID = " + str(message_id))
           channel = self.client.get_channel(channel_id)
           await channel.delete()
 
