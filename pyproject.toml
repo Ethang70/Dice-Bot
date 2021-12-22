@@ -13,6 +13,7 @@ youtube_dl = "^2021.6.6"
 python-decouple = "^3.4"
 discord-together = "^1.1.2"
 lavalink = "^3.1.4"
+mysql-connector-python = "^8.0.27"
 
 [tool.poetry.dev-dependencies]
 

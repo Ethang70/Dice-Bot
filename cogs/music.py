@@ -10,6 +10,8 @@ from discord.ext import commands
 from lavalink.events import TrackEndEvent
 import re
 import math
+import mysql.connector
+
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
@@ -84,12 +86,15 @@ class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.id = int(config('MUSIC_CHANNEL_MSG_ID'))
+        self.channel_id = 0
+        self.message_id = 0
 
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
             bot.lavalink.add_node(config("LLIP"), 2333, config("LLPASS"), 'aus', 'default-node')  # Host, Port, Password, Region, Name
 
         lavalink.add_event_hook(self.track_hook)
+
 
     def cog_unload(self):
         """ Cog unload handler. This removes any event hooks that were registered. """
@@ -179,8 +184,8 @@ class Music(commands.Cog):
 
     async def update_embed(self, player):
         prefix = config("PREFIX")
-        channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
-        message = await channel.fetch_message(int(config('MUSIC_CHANNEL_MSG_ID')))
+        channel = await self.bot.fetch_channel(self.channel_id)
+        message = await channel.fetch_message(self.message_id)
         if not player.is_connected or not player.is_playing:
             embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
             embed.add_field(name="Queue: ", value="Empty")
@@ -242,7 +247,7 @@ class Music(commands.Cog):
         return True
 
     def music_ch_check(self, ctx):
-        if not ctx.channel.id == int(config('MUSIC_CHANNEL_ID')):
+        if not ctx.channel.id == self.channel_id:
             return False
         return True
 
@@ -256,7 +261,7 @@ class Music(commands.Cog):
       if not self.check_conditions(ctx, player): 
           return
       elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -280,7 +285,7 @@ class Music(commands.Cog):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
         if not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -322,7 +327,7 @@ class Music(commands.Cog):
         if not self.check_conditions(ctx, player): 
           return
         elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -344,7 +349,7 @@ class Music(commands.Cog):
         if not self.check_conditions(ctx, player): 
             return
         elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -366,7 +371,7 @@ class Music(commands.Cog):
         if not self.check_conditions(ctx, player): 
             return
         elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -397,60 +402,107 @@ class Music(commands.Cog):
       if message.author == client.user:
         return
 
-      if message.channel.id == int(config('MUSIC_CHANNEL_ID')):
-        if not message.content.startswith(config('PREFIX')):
-            ctx = await client.get_context(message)
-            ctx.command = client.get_command('play')
-            await self.cog_before_invoke(ctx)
-            await ctx.invoke(client.get_command('play'), query=message.content)
+      self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+      self.db = self.mydb.cursor()
 
-        await asyncio.sleep(0.5)
-        await message.delete()
+      guild_id = message.guild.id
+
+      sql = "SELECT * FROM server_info WHERE guild_id = %s"
+      val = (guild_id,)
+      self.db.execute(sql, val)
+
+      result = self.db.fetchall()
+      
+      if len(result) > 0:
+        for x in result:
+          self.channel_id = x[2]
+          self.message_id = x[3]
+
+        if message.channel.id == self.channel_id:
+
+          if not message.content.startswith(config('PREFIX')):
+              ctx = await client.get_context(message)
+              ctx.command = client.get_command('play')
+              await self.cog_before_invoke(ctx)
+              await ctx.invoke(client.get_command('play'), query=message.content)
+
+          await asyncio.sleep(0.5)
+          await message.delete()
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, reaction):
         client = self.bot
-        message_id = int(config('MUSIC_CHANNEL_MSG_ID'))
+        #message_id = self.message_id
         ctx = reaction
         ctx.channel = await self.bot.fetch_channel(reaction.channel_id)
         ctx.message = await ctx.channel.fetch_message(reaction.message_id)
         ctx = await client.get_context(ctx.message)
         ctx.author = reaction.member
+        print("yes")
 
         # So the bot doesnt react to own reactions
         if ctx.author == client.user:
           return
         
         # Check that the reaction is on the music message
-        if reaction.message_id != message_id:
-            return
-        
-        emojir = str(reaction.emoji)
 
-        if emojir == "⏯":
-            await ctx.message.remove_reaction(emojir, ctx.author)
-            return await self.pause(ctx)
-        elif emojir == "⏹":
-            await ctx.message.remove_reaction(emojir, ctx.author)
-            return await self.disconnect(ctx)
-        elif emojir == "⏭":
-            await ctx.message.remove_reaction(emojir, ctx.author)
-            return await self.skip(ctx)
-        elif emojir == "🔁":
-            await ctx.message.remove_reaction(emojir, ctx.author)
-            return await self.loop(ctx)
-        elif emojir == "🔀":
-            await ctx.message.remove_reaction(emojir, ctx.author)
-            return await self.shuffle(ctx)
-        await ctx.message.remove_reaction(emojir, ctx.author)
-        await client.process_commands(ctx.message)
+        guild_id = ctx.message.guild.id
+
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+
+        sql = "SELECT * FROM server_info WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            message_id = x[3]
+            print(x[3])
+
+          if reaction.message_id != message_id:
+              return
+          
+          emojir = str(reaction.emoji)
+
+          if emojir == "⏯":
+              await ctx.message.remove_reaction(emojir, ctx.author)
+              return await self.pause(ctx)
+          elif emojir == "⏹":
+              await ctx.message.remove_reaction(emojir, ctx.author)
+              return await self.disconnect(ctx)
+          elif emojir == "⏭":
+              await ctx.message.remove_reaction(emojir, ctx.author)
+              return await self.skip(ctx)
+          elif emojir == "🔁":
+              await ctx.message.remove_reaction(emojir, ctx.author)
+              return await self.loop(ctx)
+          elif emojir == "🔀":
+              await ctx.message.remove_reaction(emojir, ctx.author)
+              return await self.shuffle(ctx)
+          await ctx.message.remove_reaction(emojir, ctx.author)
+          await client.process_commands(ctx.message)
+        else:
+          return
 
 
     @commands.command()
     async def play(self, ctx, *, query: str):
         """ Searches and plays a song from a given query. """
         if not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -519,7 +571,7 @@ class Music(commands.Cog):
         if not self.check_conditions(ctx, player): 
             return
         elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -547,7 +599,7 @@ class Music(commands.Cog):
       if not self.check_conditions(ctx, player): 
             return
       elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -588,7 +640,7 @@ class Music(commands.Cog):
         if not self.check_conditions(ctx, player): 
             return
         elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -623,7 +675,7 @@ class Music(commands.Cog):
         if not self.check_conditions(ctx, player): 
             return
         elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -651,7 +703,7 @@ class Music(commands.Cog):
         if not self.check_conditions(ctx, player):
             return
         elif not self.music_ch_check(ctx):
-            channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+            channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
             await asyncio.sleep(1)
             await msg.delete()
@@ -677,7 +729,7 @@ class Music(commands.Cog):
             if not self.check_conditions(ctx, player):
                 return
             elif not self.music_ch_check(ctx):
-                channel = await self.bot.fetch_channel(int(config('MUSIC_CHANNEL_ID')))
+                channel = await self.bot.fetch_channel(self.channel_id)
                 msg = await ctx.send('Please use this command in ' + channel.mention)
                 await asyncio.sleep(1)
                 await msg.delete()
@@ -708,15 +760,7 @@ class Music(commands.Cog):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
         await self.update_embed(player)
 
-    @commands.command()
-    async def setup(self, ctx):
-        embed = functions.discordEmbed("No song playing currently", "Status: N/A", int(config('COLOUR'), 16))
-        message = await ctx.message.channel.send("Queue: ",embed=embed)
-        await message.add_reaction('⏯')
-        await message.add_reaction('⏹')
-        await message.add_reaction('⏭')
-        await message.add_reaction('🔁')
-        await message.add_reaction('🔀')
+
            
 def setup(bot):
     bot.add_cog(Music(bot))

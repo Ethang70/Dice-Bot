@@ -1,6 +1,5 @@
 import random
 import asyncio
-import discord
 from decouple import config
 from discord.ext import commands
 import functions

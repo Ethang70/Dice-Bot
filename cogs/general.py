@@ -1,10 +1,11 @@
+import discord
 import random
 import re
 import asyncio
-import discord
 from decouple import config
 from discord.ext import commands
 import functions
+import mysql.connector
 
 prefix = config('PREFIX')
 botColour = config("COLOUR")
@@ -178,10 +179,103 @@ class general(commands.Cog):
       return ctx.message.send("Enter a smaller number")
 
     await ctx.channel.purge(limit=amount)
-    
 
 
+  ### Sets up the channel and message for the music bot ###
+  @commands.command()
+  async def setup(self, ctx):
+        prefix = config("PREFIX")
+        guild_id = ctx.guild.id
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+        
 
+        sql = "SELECT * FROM server_info WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+
+        result = self.db.fetchall()
+
+        if len(result) > 0:
+            for x in result:
+              channel_id = x[2]
+              
+            msg = await ctx.message.channel.send("Music channel already set up :)")
+            await asyncio.sleep(2)
+            await msg.delete()
+        else:
+          channel = await ctx.guild.create_text_channel("music")
+
+          embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
+          embed.add_field(name="Queue: ", value="Empty")
+          embed.add_field(name="Status: ", value="Idle")
+          embed.set_image(url=config("DEFTN"))
+          embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
+          message = await channel.send(content="To add a song join voice, and type song or url here",embed=embed)
+          await message.add_reaction('⏯')
+          await message.add_reaction('⏹')
+          await message.add_reaction('⏭')
+          await message.add_reaction('🔁')
+          await message.add_reaction('🔀')
+
+          channel_id = message.channel.id
+          msg_id = message.id
+        
+          sql = "INSERT INTO server_info (guild_id, channel_id, message_id) VALUES (%s, %s, %s)"
+          val = (guild_id, channel_id, msg_id) 
+          self.db.execute(sql, val)
+          self.mydb.commit()
+
+  @commands.command()
+  async def terminate(self, ctx):
+    prefix = config("PREFIX")
+    guild_id = ctx.guild.id
+    mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+    )
+    db = mydb.cursor()
+
+    sql = "SELECT * FROM server_info WHERE guild_id = %s"
+    val = (guild_id,)
+    db.execute(sql, val)
+
+    result = db.fetchall()
+
+    if len(result) > 0:
+        for x in result:
+          #print(x)
+          channel_id = x[2]
+          message_id = x[3]
+          print("GID = " + str(guild_id) + " CID = " + str(channel_id) + " MID = " + str(message_id))
+          channel = self.client.get_channel(channel_id)
+          await channel.delete()
+
+          guild_id = ctx.guild.id
+          mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+           )
+          db = mydb.cursor()
+
+          sql = "DELETE FROM server_info WHERE guild_id = %s"
+          val = (guild_id,)
+          db.execute(sql, val)
+          mydb.commit()
+
+    else:
+      msg = await ctx.message.channel.send("There is no music channel setup! Please use  " + prefix + "setup to setup the channel")
+      await asyncio.sleep(2)
+      await msg.delete()
 
 def setup(client):
     client.add_cog(general(client))
