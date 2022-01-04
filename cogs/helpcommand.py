@@ -56,11 +56,11 @@ class helpcommand(commands.Cog):
     user = ctx.author
 
     helpPage = self #.HelpPage()
-    helpEmbed = helpPage.updateHelpPage(helpPage.lowerRange, helpPage.higherRange)
+    helpPage.resetCurrentPage()    
+    helpEmbed = helpPage.updateHelpPage(0, 4)
     helpMessage = await ctx.message.channel.send(embed=helpEmbed)
     await helpMessage.add_reaction("⏪")
     await helpMessage.add_reaction("⏩")
-    helpPage.resetCurrentPage()
   
   # Reaction helper to help command
   @commands.Cog.listener()
@@ -73,7 +73,6 @@ class helpcommand(commands.Cog):
     ctx = await client.get_context(ctx.message)
     ctx.author = reaction.member
 
-
     # So the bot doesnt react to own reactions
     if ctx.author == client.user:
       return
@@ -81,7 +80,7 @@ class helpcommand(commands.Cog):
     embed = ctx.message.embeds[0]
 
     ### Check is a bot help message ###
-    if ctx.message.author is not client.user and embed.title != "Help":
+    if ctx.message.author is client.user and embed.title != "Help":
       return
     
     emojir = str(reaction.emoji)

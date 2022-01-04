@@ -13,7 +13,7 @@ class discordtogether(commands.Cog):
 
   @commands.command(name="youtube")
   async def youtube(self, ctx):
-    link = await self.togetherControl.create_link(ctx.author.voice.channel.id, 'youtube')
+    link = await self.togetherControl.create_link(ctx.author.voice.channel.id, '880218394199220334')
     await ctx.send(f"CLICK HERE FOR FREE V-BuckS\n{link}")
 
   @commands.command()
