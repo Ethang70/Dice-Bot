@@ -185,7 +185,7 @@ class Music(commands.Cog):
 
     async def update_embed(self, player):
         prefix = config("PREFIX")
-        guild_id = player.guild_id
+        guild_id = str(player.guild_id)
         channel_id = 0
         message_id = 0
 
@@ -197,7 +197,7 @@ class Music(commands.Cog):
         )
         db = mydb.cursor()
 
-        sql = "SELECT * FROM " + self.table + " guild_id = %s"
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
         val = (guild_id,)
         db.execute(sql, val)
 
