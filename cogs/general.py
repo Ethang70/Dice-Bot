@@ -14,6 +14,7 @@ botColourInt = int(botColour, 16)
 class general(commands.Cog):
   def __init__(self, client):
     self.client = client
+    self.table = config('MYSQLTB')
 
   @commands.Cog.listener()
   async def on_ready(self):
@@ -165,7 +166,7 @@ class general(commands.Cog):
         self.db = self.mydb.cursor()
         
 
-        sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
         val = (guild_id,)
         self.db.execute(sql, val)
 
@@ -213,7 +214,7 @@ class general(commands.Cog):
     )
     db = mydb.cursor()
 
-    sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
+    sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
     val = (guild_id,)
     db.execute(sql, val)
 

@@ -88,6 +88,7 @@ class Music(commands.Cog):
         self.id = int(config('MUSIC_CHANNEL_MSG_ID'))
         self.channel_id = 0
         self.message_id = 0
+        self.table = config('MYSQLTB')
 
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
@@ -196,7 +197,7 @@ class Music(commands.Cog):
         )
         db = mydb.cursor()
 
-        sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
+        sql = "SELECT * FROM " + self.table + " guild_id = %s"
         val = (guild_id,)
         db.execute(sql, val)
 
@@ -435,7 +436,7 @@ class Music(commands.Cog):
 
       guild_id = message.guild.id
 
-      sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
+      sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
       val = (guild_id,)
       self.db.execute(sql, val)
 
@@ -483,7 +484,7 @@ class Music(commands.Cog):
         )
         self.db = self.mydb.cursor()
 
-        sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
         val = (guild_id,)
         self.db.execute(sql, val)
 
