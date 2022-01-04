@@ -1,11 +1,11 @@
 {
   "files": {
-    "functions.py": [
+    "cogs/help.py": [
       {
-        "id": "c2475a5a-6db9-4858-ba98-13d838b9e9be",
-        "line": 11,
-        "version": 299,
-        "index": 361
+        "id": "36c4705f-8b1d-4415-937e-12ac065983fb",
+        "line": 24,
+        "version": 246,
+        "index": 3431
       }
     ]
   }

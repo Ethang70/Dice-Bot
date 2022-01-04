@@ -184,8 +184,31 @@ class Music(commands.Cog):
 
     async def update_embed(self, player):
         prefix = config("PREFIX")
-        channel = await self.bot.fetch_channel(self.channel_id)
-        message = await channel.fetch_message(self.message_id)
+        guild_id = player.guild_id
+        channel_id = 0
+        message_id = 0
+
+        mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        db = mydb.cursor()
+
+        sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
+        val = (guild_id,)
+        db.execute(sql, val)
+
+        result = db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            channel_id = x[2]
+            message_id = x[3]
+
+        channel = await self.bot.fetch_channel(channel_id)
+        message = await channel.fetch_message(message_id)
         if not player.is_connected or not player.is_playing:
             embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
             embed.add_field(name="Queue: ", value="Empty")
@@ -412,7 +435,7 @@ class Music(commands.Cog):
 
       guild_id = message.guild.id
 
-      sql = "SELECT * FROM server_info WHERE guild_id = %s"
+      sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
       val = (guild_id,)
       self.db.execute(sql, val)
 
@@ -460,7 +483,7 @@ class Music(commands.Cog):
         )
         self.db = self.mydb.cursor()
 
-        sql = "SELECT * FROM server_info WHERE guild_id = %s"
+        sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
         val = (guild_id,)
         self.db.execute(sql, val)
 
@@ -468,9 +491,10 @@ class Music(commands.Cog):
         
         if len(result) > 0:
           for x in result:
-            message_id = x[3]
+            self.channel_id = x[2]
+            self.message_id = x[3]
 
-          if reaction.message_id != message_id:
+          if reaction.message_id != self.message_id:
               return
           
           emojir = str(reaction.emoji)

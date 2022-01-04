@@ -11,9 +11,6 @@ prefix = config('PREFIX')
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16)
 
-helpCommandNames = ["command1", "command2", "command3", "command4", "command5", "command6", "command7", "command8", "command9", "command10"]
-helpCommandAbout = ["test1", "test2", "test3", "test4", "test5", "test6", "test7", "test8", "test9", "test10"]
-
 class general(commands.Cog):
   def __init__(self, client):
     self.client = client
@@ -22,32 +19,6 @@ class general(commands.Cog):
   async def on_ready(self):
     print('\033[92m' + 'General Loaded' + '\033[0m')
 
-  @commands.command()
-  async def help(self, ctx):
-      user = ctx.author
-      # embed object
-      # remember this help message
-      # reaction icons for down one page and up one page
-      # create command array - so we can add commands easily
-
-      lowerRange = 0
-      higherRange = 5
-
-      def updateHelpPage(low, high):
-        helpCommandNameCurrent = helpCommandNames[low:high]
-        helpCommandAboutCurrent = helpCommandAbout[low:high]
-        helpCommandContent = ""
-        for i in range(low, high):
-          helpCommandContent += prefix + "**" + helpCommandNameCurrent[i] + "**" + ": " + helpCommandAboutCurrent[i] + "\n"
-        return functions.discordEmbed("Help", helpCommandContent, botColourInt)
-      
-      helpEmbed = updateHelpPage(lowerRange, higherRange)
-      helpMessage = await ctx.message.channel.send(embed=helpEmbed)
-      await helpMessage.add_reaction("⏪")
-      await helpMessage.add_reaction("⏩")
-
-      timedOut = False
-    
   # Command to roll X times with Y number of specified faces 
   @commands.command()
   async def rtd(self, ctx, noRoll=None, noFace=None):
@@ -89,7 +60,6 @@ class general(commands.Cog):
                 allDieRolls = "" # Clear the message
           if edited is False:
             embed = functions.discordEmbed("Performed " + noRoll + " rolls with a " + noFace + "-sided die.", allDieRolls, int(config('COLOUR'), 16))
-            msg = await ctx.message.channel.send(embed=embed)
             message = await ctx.channel.fetch_message(id)
             await message.edit(embed=embed)
           else:
@@ -195,7 +165,7 @@ class general(commands.Cog):
         self.db = self.mydb.cursor()
         
 
-        sql = "SELECT * FROM server_info WHERE guild_id = %s"
+        sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
         val = (guild_id,)
         self.db.execute(sql, val)
 
@@ -226,7 +196,7 @@ class general(commands.Cog):
           channel_id = message.channel.id
           msg_id = message.id
         
-          sql = "INSERT INTO server_info (guild_id, channel_id, message_id) VALUES (%s, %s, %s)"
+          sql = "INSERT INTO server_info_test (guild_id, channel_id, message_id) VALUES (%s, %s, %s)"
           val = (guild_id, channel_id, msg_id) 
           self.db.execute(sql, val)
           self.mydb.commit()
@@ -243,7 +213,7 @@ class general(commands.Cog):
     )
     db = mydb.cursor()
 
-    sql = "SELECT * FROM server_info WHERE guild_id = %s"
+    sql = "SELECT * FROM server_info_test WHERE guild_id = %s"
     val = (guild_id,)
     db.execute(sql, val)
 
@@ -265,7 +235,7 @@ class general(commands.Cog):
            )
           db = mydb.cursor()
 
-          sql = "DELETE FROM server_info WHERE guild_id = %s"
+          sql = "DELETE FROM server_info_test WHERE guild_id = %s"
           val = (guild_id,)
           db.execute(sql, val)
           mydb.commit()
