@@ -80,7 +80,7 @@ class helpcommand(commands.Cog):
     embed = ctx.message.embeds[0]
 
     ### Check is a bot help message ###
-    if ctx.message.author is client.user and embed.title != "Help":
+    if ctx.message.author is not client.user and embed.title == "Help":
       return
     
     emojir = str(reaction.emoji)
