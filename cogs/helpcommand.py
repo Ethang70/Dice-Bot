@@ -29,13 +29,12 @@ class helpcommand(commands.Cog):
     print('\033[92m' + 'Help Loaded' + '\033[0m')
 
   currentPage = 0
-  lowerRange = 0
+  lowerRange = 0  
 
   # Update the list of help commands currently displayed
-  def updateHelpPage(self, low, high):
-      self.lowerRange = low
-      self.higherRange = high
-      high = high+1
+  def updateHelpPage(self, embed, page):
+      low = page * 5
+      high = (page + 1) * 5
       helpCommandNameCurrent = helpCommandNames[low:high]
       helpCommandAboutCurrent = helpCommandAbout[low:high]
       helpCommandContent = ""
@@ -45,20 +44,30 @@ class helpcommand(commands.Cog):
       except IndexError as err:
         print("INFO - " + str(err) + " - end of list but not multiple of 5.")
       embed = discord.Embed(title="Help", description=helpCommandContent, color=botColourInt)
-      embed.set_footer(text="Page " + str(self.currentPage+1) + " of " + str(self.pageMax))
+      embed.set_footer(text="Page " + str(page+1) + " of " + str(self.pageMax + 1))
       return embed
   
-  def resetCurrentPage(self):
-    self.currentPage = 0
+  def getPageNumber(self, embed):
+    pageText = embed.footer.text
+    pageArr = pageText.split()
+    currentPage = int(pageArr[1]) - 1
+    return currentPage
 
   @commands.command()
   async def help(self, ctx):
-    user = ctx.author
+    high = self.higherRange+1
+    low = self.lowerRange
+    helpCommandNameCurrent = helpCommandNames[low:high]
+    helpCommandAboutCurrent = helpCommandAbout[low:high]
+    helpCommandContent = ""
 
-    helpPage = self #.HelpPage()
-    helpPage.resetCurrentPage()    
-    helpEmbed = helpPage.updateHelpPage(0, 4)
-    helpMessage = await ctx.message.channel.send(embed=helpEmbed)
+    for i in range(low, high):
+      helpCommandContent += prefix + "**" + helpCommandNameCurrent[i-low] + "**" + " - " + helpCommandAboutCurrent[i-low] + "\n"
+
+    embed = discord.Embed(title="Help", description=helpCommandContent, color=botColourInt)
+    embed.set_footer(text="Page 1 of " + str(self.pageMax + 1))
+
+    helpMessage = await ctx.message.channel.send(embed=embed)
     await helpMessage.add_reaction("⏪")
     await helpMessage.add_reaction("⏩")
   
@@ -80,23 +89,22 @@ class helpcommand(commands.Cog):
     embed = ctx.message.embeds[0]
 
     ### Check is a bot help message ###
-    if ctx.message.author is not client.user and embed.title == "Help":
+    if ctx.message.author != client.user and embed.title == "Help":
       return
     
+    page = self.getPageNumber(embed) # int(embed.footer.text) - 1
     emojir = str(reaction.emoji)
 
     if emojir == "⏪":
       await ctx.message.remove_reaction("⏪", ctx.author)
-      if self.currentPage <= self.pageMin:
+      if page <= self.pageMin:
         return
       else:
-        self.currentPage = self.currentPage - 1
-        await ctx.message.edit(embed=self.updateHelpPage(self.lowerRange - self.perPage, self.higherRange - self.perPage))
+        await ctx.message.edit(embed=self.updateHelpPage(embed, page - 1))
     elif emojir == "⏩":
       await ctx.message.remove_reaction("⏩", ctx.author)
-      if self.currentPage < self.pageMax:
-        self.currentPage = self.currentPage + 1
-        await ctx.message.edit(embed=self.updateHelpPage(self.lowerRange + self.perPage, self.higherRange + self.perPage)) 
+      if page < self.pageMax:
+        await ctx.message.edit(embed=self.updateHelpPage(embed, page + 1)) 
         return
       else:
         return
