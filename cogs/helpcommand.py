@@ -42,7 +42,7 @@ class helpcommand(commands.Cog):
         for i in range(low, high):
           helpCommandContent += prefix + "**" + helpCommandNameCurrent[i-low] + "**" + " - " + helpCommandAboutCurrent[i-low] + "\n"
       except IndexError as err:
-        print("INFO - " + str(err) + " - end of list but not multiple of 5.")
+        print("\033[93mINFO - " + str(err) + " - end of list but not multiple of 5.")
       embed = discord.Embed(title="Help", description=helpCommandContent, color=botColourInt)
       embed.set_footer(text="Page " + str(page+1) + " of " + str(self.pageMax + 1))
       return embed
@@ -55,6 +55,7 @@ class helpcommand(commands.Cog):
 
   @commands.command()
   async def help(self, ctx):
+    user = ctx.author
     high = self.higherRange+1
     low = self.lowerRange
     helpCommandNameCurrent = helpCommandNames[low:high]
@@ -67,7 +68,7 @@ class helpcommand(commands.Cog):
     embed = discord.Embed(title="Help", description=helpCommandContent, color=botColourInt)
     embed.set_footer(text="Page 1 of " + str(self.pageMax + 1))
 
-    helpMessage = await ctx.message.channel.send(embed=embed)
+    helpMessage = await ctx.message.channel.send(content="Here " + user.mention,embed=embed)
     await helpMessage.add_reaction("⏪")
     await helpMessage.add_reaction("⏩")
   

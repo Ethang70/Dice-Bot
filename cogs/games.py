@@ -1,8 +1,13 @@
 import random
 import asyncio
+import discord
 from decouple import config
 from discord.ext import commands
 import functions
+
+prefix = config('PREFIX')
+botColour = config("COLOUR")
+botColourInt = int(botColour, 16)
 
 class games(commands.Cog):
   def __init__(self, client):
@@ -113,6 +118,73 @@ class games(commands.Cog):
           finalMessage = await ctx.channel.fetch_message(answer.id)
           await finalMessage.delete()
     return theNumber + 1
+
+  # Rock Paper Scissors
+  # Returns 1 on player win, 0 on bot win, 2 on draw and -1 on error
+  @commands.command()
+  async def rps(self, ctx, playerInput):
+
+    # Usage of command
+    usage = functions.discordEmbed("Usage: ", config('PREFIX') + "rps [Rock, Paper or Scissors]", int(config('COLOUR'), 16))
+    
+    playerMove = -1
+    
+    if str(playerInput).lower() == "rock" or str(playerInput).lower() == "r":
+      playerMove = 0
+    elif str(playerInput).lower() == "paper" or str(playerInput).lower() == "p":
+      playerMove = 1
+    elif str(playerInput).lower() == "scissors" or str(playerInput).lower() == "s":
+      playerMove = 2
+    else:
+      embed = discord.Embed(title="Rock Paper Scissors", description="Invalid move!", color=botColourInt)
+      embed.set_footer(text="Please enter either Rock, Paper or Scissors.")
+      await ctx.message.channel.send(embed=embed)
+      return -1
+
+    botMove = random.randint(0, 2)
+
+    # 0 = Rock
+    # 1 = Paper
+    # 2 = Scissors
+    moves = {"0": "Rock", "1": "Paper", "2": "Scissors"}
+
+    def moveEmbed(botMove, win=None):
+      if win is None:
+        embed = discord.Embed(title="Draw!", description="You drew!", color=botColourInt)
+      elif win:
+        embed = discord.Embed(title="You win!", description="Congratulations!", color=botColourInt)
+      else:
+        embed = discord.Embed(title="You lose!", description="Unlucky!", color=botColourInt)
+      embed.set_footer(text="Bot chose " + moves[str(botMove)] + ".")
+      return embed
+
+    if botMove == playerMove:
+      await ctx.message.channel.send(embed=moveEmbed(botMove))
+      return 2
+
+    if botMove == 0:
+      if playerMove == 1:
+        await ctx.message.channel.send(embed=moveEmbed(botMove, True))
+        return 1
+      else:
+        await ctx.message.channel.send(embed=moveEmbed(botMove, False))
+        return 0
+    elif botMove == 1:
+      if playerMove == 0:
+        await ctx.message.channel.send(embed=moveEmbed(botMove, False))
+        return 0
+      else:
+        await ctx.message.channel.send(embed=moveEmbed(botMove, True))
+        return 1
+    elif botMove == 2:
+      if playerMove == 0:
+        await ctx.message.channel.send(embed=moveEmbed(botMove, True))
+        return 1
+      else:
+        await ctx.message.channel.send(embed=moveEmbed(botMove, False))
+        return 0
+    
+    return -1
 
 def setup(client):
     client.add_cog(games(client))
