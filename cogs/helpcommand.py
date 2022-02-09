@@ -87,10 +87,13 @@ class helpcommand(commands.Cog):
     if ctx.author == client.user:
       return
 
+    if not ctx.message.embeds:
+      return
+    
     embed = ctx.message.embeds[0]
 
     ### Check is a bot help message ###
-    if ctx.message.author != client.user and embed.title == "Help":
+    if ctx.message.author != client.user or embed.title != "Help":
       return
     
     page = self.getPageNumber(embed) # int(embed.footer.text) - 1

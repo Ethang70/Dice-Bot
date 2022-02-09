@@ -11,7 +11,7 @@ from lavalink.events import TrackEndEvent
 import re
 import math
 import mysql.connector
-
+import threading
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
@@ -163,25 +163,27 @@ class Music(commands.Cog):
         countdown: bool
         timeout: int
         if isinstance(event, lavalink.events.QueueEndEvent):
-            self.countdown = True
-            timeout = 600
+            #self.countdown = True
+            #timeout = 600
             # When this track_hook receives a "QueueEndEvent" from lavalink.py
             # it indicates that there are no tracks left in the player's queue.
             # To save on resources, we can tell the bot to disconnect from the voicechannel.
             guild_id = int(event.player.guild_id)
             guild = self.bot.get_guild(guild_id)
             await self.update_embed(event.player)
-            while self.countdown == True:
-              timeout = timeout - 1
-              await asyncio.sleep(1)
-              if timeout <= 0:
-                await guild.voice_client.disconnect(force=True)
-                self.countdown = False
+            #while self.countdown == True:
+            #  timeout = timeout - 1
+            #  await asyncio.sleep(1)
+            #  if timeout <= 0:
+            await guild.voice_client.disconnect(force=True)
+             #   self.countdown = False
 
         elif isinstance(event, lavalink.events.TrackStartEvent):
-            self.countdown = False
+            #self.countdown = False
             player = event.player
+            # while player.is_playing:
             await self.update_embed(player)
+              # await asyncio.sleep(10)
 
     async def update_embed(self, player):
         prefix = config("PREFIX")
@@ -248,6 +250,14 @@ class Music(commands.Cog):
             
             if player.shuffle:
                 status += "  🔀"
+
+            # if player.current:
+            #   pos = lavalink.format_time(player.position)
+            #   if player.current.stream:
+            #       dur = 'LIVE'
+            #   else:
+            #       dur = lavalink.format_time(player.current.duration)
+            #   embed.description = f'({pos}/{dur})'
             
             embed.set_image(url=thumbnail)
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
@@ -277,7 +287,6 @@ class Music(commands.Cog):
 
     ### MEDIA CONTROL FUNCTIONS ###
 
-    @commands.command()
     async def pause(self, ctx):
       """ Pauses/Unpauses current song """
       player = self.bot.lavalink.player_manager.get(ctx.guild.id)
@@ -303,10 +312,31 @@ class Music(commands.Cog):
       await asyncio.sleep(1)
       await msg.delete()  
 
-    @commands.command(aliases=['dc','stop'])
+    @commands.command(aliases=['dc'])
     async def disconnect(self, ctx):
         """ Disconnects the player from the voice channel and clears its queue. """
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+        guild_id = ctx.guild.id
+
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+  
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+  
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            self.channel_id = x[2]
+            self.message_id = x[3]
 
         if not self.music_ch_check(ctx):
             channel = await self.bot.fetch_channel(self.channel_id)
@@ -422,6 +452,11 @@ class Music(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
       client = self.bot
+
+      async def del_msg(message):
+        await asyncio.sleep(0.5)
+        await message.delete()
+      
       # So the bot doesn't react to its own messages.
       if message.author == client.user:
         return
@@ -447,17 +482,18 @@ class Music(commands.Cog):
           self.channel_id = x[2]
           self.message_id = x[3]
 
-        if message.channel.id == self.channel_id:
-
-          if not message.content.startswith(config('PREFIX')):
-              ctx = await client.get_context(message)
-              ctx.command = client.get_command('play')
-              await self.cog_before_invoke(ctx)
-              await ctx.invoke(client.get_command('play'), query=message.content)
-
-          await asyncio.sleep(0.5)
-          await message.delete()
-
+          if message.channel.id == self.channel_id:
+          
+            if not message.content.startswith(config('PREFIX')):
+                ctx = await client.get_context(message)
+                asyncio.get_event_loop().create_task(del_msg(message))
+                ctx.command = client.get_command('play')
+                await self.cog_before_invoke(ctx)
+                await ctx.invoke(client.get_command('play'), query=message.content)
+            else:
+              await del_msg(message)
+      
+          
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, reaction):
         client = self.bot
@@ -577,33 +613,54 @@ class Music(commands.Cog):
             player.add(requester=ctx.author.id, track=track)
 
         msg = await ctx.send(embed=embed)
-        
+        await self.update_embed(player)
+        await asyncio.sleep(0.2)
+        await msg.delete()
         # We don't want to call .play() if the player is playing as that will effectively skip
         # the current track.
         if not player.is_playing:
             await player.play()
            
-        await self.update_embed(player)
-        await asyncio.sleep(1)
-        await msg.delete()
+
 
     @commands.command(aliases=['rm'])
     async def remove(self, ctx, index: int):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+        guild_id = ctx.guild.id
+
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            self.channel_id = x[2]
+            self.message_id = x[3]
         
         if not self.check_conditions(ctx, player): 
             return
         elif not self.music_ch_check(ctx):
             channel = await self.bot.fetch_channel(self.channel_id)
             msg = await ctx.send('Please use this command in ' + channel.mention)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
             await msg.delete()
             return
 
         if index > len(player.queue) or index < 1:
             msg = await ctx.send('Index has to be >=1 and <=queue size')
             await self.update_embed(player)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
             return await msg.delete()
 
         index = index - 1
@@ -618,6 +675,27 @@ class Music(commands.Cog):
     async def queue(self, ctx, page : int=1):
       """ The Queue """
       player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+      guild_id = ctx.guild.id
+
+      self.mydb = mysql.connector.connect(
+        host = config("MYSQLIP"),
+        user = config("MYSQLUSER"),
+        password = config("MYSQLPASS"),
+        database = config("MYSQLDB")
+      )
+      self.db = self.mydb.cursor()
+
+      sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+      val = (guild_id,)
+      self.db.execute(sql, val)
+
+      result = self.db.fetchall()
+      
+      if len(result) > 0:
+        for x in result:
+          self.channel_id = x[2]
+          self.message_id = x[3]
 
       if not self.check_conditions(ctx, player): 
             return
@@ -659,6 +737,27 @@ class Music(commands.Cog):
     @commands.command(aliases=['mv'])
     async def move(self, ctx, current: int, new: int):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+        guild_id = ctx.guild.id
+
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+  
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+  
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            self.channel_id = x[2]
+            self.message_id = x[3]
         
         if not self.check_conditions(ctx, player): 
             return
@@ -695,6 +794,28 @@ class Music(commands.Cog):
     @commands.command(aliases=['np', 'n'])
     async def now(self, ctx):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+
+        guild_id = ctx.guild.id
+
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+  
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+  
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            self.channel_id = x[2]
+            self.message_id = x[3]
+            
         if not self.check_conditions(ctx, player): 
             return
         elif not self.music_ch_check(ctx):
@@ -723,6 +844,27 @@ class Music(commands.Cog):
     async def seek(self, ctx, time):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
+        guild_id = ctx.guild.id
+
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+  
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+  
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            self.channel_id = x[2]
+            self.message_id = x[3]
+
         if not self.check_conditions(ctx, player):
             return
         elif not self.music_ch_check(ctx):
@@ -747,6 +889,27 @@ class Music(commands.Cog):
 
     @commands.command(aliases=['vol'])
     async def volume(self, ctx, volume: int=None):
+        guild_id = ctx.guild.id
+  
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+  
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+  
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            self.channel_id = x[2]
+            self.message_id = x[3]
+            
         if ctx.author.guild_permissions.administrator: 
             player = self.bot.lavalink.player_manager.get(ctx.guild.id)
             if not self.check_conditions(ctx, player):
@@ -758,13 +921,13 @@ class Music(commands.Cog):
                 await msg.delete()
                 return
 
-            if volume > 100:
+            if volume is None:
+              msg = await ctx.send(f'🔈 | {player.volume}%')
+              await asyncio.sleep(1)
+              return await msg.delete()
+              
+            if volume > 1000:
                 msg = await ctx.send(f'Too large')
-                await asyncio.sleep(1)
-                return await msg.delete()
-
-            if not volume:
-                msg = await ctx.send(f'🔈 | {player.volume}%')
                 await asyncio.sleep(1)
                 return await msg.delete()
 
@@ -781,9 +944,28 @@ class Music(commands.Cog):
     @commands.command()
     async def update(self,ctx):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+        guild_id = ctx.guild.id
+    
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+  
+        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+  
+        result = self.db.fetchall()
+        
+        if len(result) > 0:
+          for x in result:
+            self.channel_id = x[2]
+            self.message_id = x[3]
+            
         await self.update_embed(player)
-
-
-           
+    
 def setup(bot):
     bot.add_cog(Music(bot))
