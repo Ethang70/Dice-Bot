@@ -95,7 +95,23 @@ class general(commands.Cog):
       else:
           await channel.send('👍')
 
-  # Command for questions
+  #coding on a phone is bad
+  # Facts or Cap
+  @commands.command() 
+  async def factsorcap(self, ctx):
+    randomFactOrCap = random.randint(1,2)
+    if randomFactOrCap == 1:
+      facts = await ctx.message.channel.send("Fax!")
+      await facts.add_reaction('📠')
+    else:
+      cap = await ctx.message.channel.send("Cap!")
+      await cap.add_reaction('🇨')
+      await cap.add_reaction('🅰️')
+      await cap.add_reaction('🅿️')
+    return randomFactOrCap
+    
+
+  #Command for questions   
   @commands.command()
   async def question(self, ctx, *arg):
       question = False
