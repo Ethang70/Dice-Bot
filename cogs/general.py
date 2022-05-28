@@ -107,9 +107,9 @@ class general(commands.Cog):
       cap = await ctx.message.channel.send("Cap!")
       await cap.add_reaction('🇨')
       await cap.add_reaction('🅰️')
-      await cap.add_reaction('🅿️')
+      await cap.add_reaction('🅿️') 
+    await ctx.message.delete()
     return randomFactOrCap
-    
 
   #Command for questions   
   @commands.command()
