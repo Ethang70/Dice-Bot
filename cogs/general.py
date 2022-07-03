@@ -16,11 +16,7 @@ class general(commands.Cog):
     self.client = client
     self.table = config('MYSQLTB')
 
-  @commands.Cog.listener()
-  async def on_ready(self):
-    print('\033[92m' + 'General Loaded' + '\033[0m')
-
-  # Command to roll X times with Y number of specified faces 
+  ### Command to roll X times with Y number of specified faces ##
   @commands.command()
   async def rtd(self, ctx, noRoll=None, noFace=None):
 
@@ -79,24 +75,7 @@ class general(commands.Cog):
     else:
       await rolldie(self, ctx, noRoll, noFace)
 
-  # Command to test thumb reactions
-  @commands.command()
-  async def thumb(self, ctx):
-      channel = ctx.message.channel
-      await ctx.channel.send('Send me that 👍 reaction, mate')
-
-      def check(reaction, user):
-          return user == ctx.message.author and str(reaction.emoji) == '👍'
-
-      try:
-          reaction, user = await self.client.wait_for('reaction_add', timeout=10.0, check=check)
-      except asyncio.TimeoutError:
-          await channel.send('👎')
-      else:
-          await channel.send('👍')
-
-  #coding on a phone is bad
-  # Facts or Cap
+  ### Facts or Cap ###
   @commands.command() 
   async def factsorcap(self, ctx):
     randomFactOrCap = random.randint(1,2)
@@ -111,7 +90,7 @@ class general(commands.Cog):
     await ctx.message.delete()
     return randomFactOrCap
 
-  #Command for questions   
+  ### Command for questions ###
   @commands.command()
   async def question(self, ctx, *arg):
       question = False
@@ -152,6 +131,8 @@ class general(commands.Cog):
       elif response == 10:
         await ctx.message.channel.send("No!")
   
+
+  ### Allows admins of guild to delete messages ###
   @commands.command()
   async def clear(self,ctx, amount: int):
     if not ctx.author.guild_permissions.administrator:
@@ -201,7 +182,7 @@ class general(commands.Cog):
           embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
           embed.add_field(name="Queue: ", value="Empty")
           embed.add_field(name="Status: ", value="Idle")
-          embed.set_image(url=config("DEFTN"))
+          embed.set_image(url=config("BKG_IMG"))
           embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
           message = await channel.send(content="To add a song join voice, and type song or url here",embed=embed)
           await message.add_reaction('⏯')
@@ -218,8 +199,13 @@ class general(commands.Cog):
           self.db.execute(sql, val)
           self.mydb.commit()
 
+### Removes server entry from music bot table ### 
   @commands.command()
   async def terminate(self, ctx):
+    if not ctx.author.guild_permissions.administrator:
+      ctx.message.send("You have insufficent permissions.")
+      return
+
     prefix = config("PREFIX")
     guild_id = ctx.guild.id
     mydb = mysql.connector.connect(

@@ -9,11 +9,7 @@ class league(commands.Cog):
     self.client = client
     self.riotkey = config('RIOT')
   
-  @commands.Cog.listener()
-  async def on_ready(self):
-    print('\033[92m' + 'League Loaded' + '\033[0m')
-  
-  # Function to return the encrypted SummonerId using Riot API & Summoner name
+  ### Function to return the encrypted SummonerId using Riot API & Summoner name ###
   def get_summoner_id(self, name):
     if name == None:
       return(1) # If no name is present return 1
@@ -31,7 +27,7 @@ class league(commands.Cog):
       id = json_data['id']
       return(id)
 
-  # Function to return current game information using encrypted SummonerId
+  ### Function to return current game information using encrypted SummonerId ###
   def get_current_game(self, summoner_id):
     url = "https://oc1.api.riotgames.com/lol/spectator/v4/active-games/by-summoner/" + summoner_id
     response = requests.get(url, headers={"X-Riot-Token":self.riotkey})
@@ -45,6 +41,7 @@ class league(commands.Cog):
     else:
       return(json_data)
 
+  ### Function that obtains and prints summoner id using summoner name ### 
   @commands.command()
   async def sid(self, ctx, arg): 
       name = arg

@@ -13,7 +13,7 @@ class games(commands.Cog):
   def __init__(self, client):
     self.client = client
 
-  # Guess the random number
+  ### Guess the random number ###
   @commands.command()
   async def gtn(self, ctx, lowRange=None, highRange=None):
 
@@ -119,8 +119,8 @@ class games(commands.Cog):
           await finalMessage.delete()
     return theNumber + 1
 
-  # Rock Paper Scissors
-  # Returns 1 on player win, 0 on bot win, 2 on draw and -1 on error
+  ### Rock Paper Scissors ###
+  ### Returns 1 on player win, 0 on bot win, 2 on draw and -1 on error
   @commands.command()
   async def rps(self, ctx, playerInput):
 

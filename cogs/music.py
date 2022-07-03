@@ -30,7 +30,8 @@ class LavalinkVoiceClient(discord.VoiceClient):
                     2333,
                     config("LLPASS"),
                     'aus',
-                    'default-node')
+                    'default-node',
+                    3600)
             self.lavalink = self.client.lavalink
 
     async def on_voice_server_update(self, data):
@@ -92,7 +93,7 @@ class Music(commands.Cog):
 
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
-            bot.lavalink.add_node(config("LLIP"), 2333, config("LLPASS"), 'aus', 'default-node')  # Host, Port, Password, Region, Name
+            bot.lavalink.add_node(config("LLIP"), 2333, config("LLPASS"), 'aus', 'default-node', 3600)  # Host, Port, Password, Region, Name
 
         lavalink.add_event_hook(self.track_hook)
 
@@ -160,30 +161,18 @@ class Music(commands.Cog):
                 raise commands.CommandInvokeError('You need to be in my voicechannel.')
 
     async def track_hook(self, event):
-        countdown: bool
-        timeout: int
         if isinstance(event, lavalink.events.QueueEndEvent):
-            #self.countdown = True
-            #timeout = 600
             # When this track_hook receives a "QueueEndEvent" from lavalink.py
             # it indicates that there are no tracks left in the player's queue.
             # To save on resources, we can tell the bot to disconnect from the voicechannel.
             guild_id = int(event.player.guild_id)
             guild = self.bot.get_guild(guild_id)
             await self.update_embed(event.player)
-            #while self.countdown == True:
-            #  timeout = timeout - 1
-            #  await asyncio.sleep(1)
-            #  if timeout <= 0:
             await guild.voice_client.disconnect(force=True)
-             #   self.countdown = False
 
         elif isinstance(event, lavalink.events.TrackStartEvent):
-            #self.countdown = False
             player = event.player
-            # while player.is_playing:
             await self.update_embed(player)
-              # await asyncio.sleep(10)
 
     async def update_embed(self, player):
         prefix = config("PREFIX")
@@ -216,7 +205,7 @@ class Music(commands.Cog):
             embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
             embed.add_field(name="Queue: ", value="Empty")
             embed.add_field(name="Status: ", value="Idle")
-            embed.set_image(url=config("DEFTN"))
+            embed.set_image(url=config("BKG_IMG"))
             embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
             await message.edit(content="To add a song join voice, and type song or url here",embed=embed)
             return
@@ -250,14 +239,6 @@ class Music(commands.Cog):
             
             if player.shuffle:
                 status += "  🔀"
-
-            # if player.current:
-            #   pos = lavalink.format_time(player.position)
-            #   if player.current.stream:
-            #       dur = 'LIVE'
-            #   else:
-            #       dur = lavalink.format_time(player.current.duration)
-            #   embed.description = f'({pos}/{dur})'
             
             embed.set_image(url=thumbnail)
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
@@ -347,18 +328,14 @@ class Music(commands.Cog):
 
         if not player.is_connected:
             # We can't disconnect, if we're not connected.
-            await self.update_embed(player)
             msg = await ctx.send('Not connected.')
-            await self.update_embed(player)
             await asyncio.sleep(1)
             return await msg.delete()
 
         if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
             # Abuse prevention. Users not in voice channels, or not in the same voice channel as the bot
             # may not disconnect the bot.
-            await self.update_embed(player)
             msg = await ctx.send('You\'re not in my voicechannel!')
-            await self.update_embed(player)
             await asyncio.sleep(1)
             return await msg.delete()
 
@@ -370,9 +347,9 @@ class Music(commands.Cog):
         # Disconnect from the voice channel.
         await ctx.voice_client.disconnect(force=True)
         msg = await ctx.send('Disconnected.')
-        await self.update_embed(player)
         await asyncio.sleep(1)
-        await msg.delete()  
+        await msg.delete()
+        await self.update_embed(player)  
 
     async def skip(self, ctx):
         """ Skips the current song """

@@ -24,10 +24,6 @@ class helpcommand(commands.Cog):
     self.perPage = 5
     self.helpID = None
 
-  @commands.Cog.listener()
-  async def on_ready(self):
-    print('\033[92m' + 'Help Loaded' + '\033[0m')
-
   currentPage = 0
   lowerRange = 0  
 
