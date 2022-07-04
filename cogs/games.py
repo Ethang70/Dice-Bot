@@ -186,5 +186,5 @@ class games(commands.Cog):
     
     return -1
 
-def setup(client):
-    client.add_cog(games(client))
+async def setup(client):
+    await client.add_cog(games(client))

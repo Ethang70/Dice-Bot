@@ -58,5 +58,5 @@ class league(commands.Cog):
       else:
         await ctx.channel.send('Summoner id is: ' + str(id))
   
-def setup(client):
-     client.add_cog(league(client))
+async def setup(client):
+    await client.add_cog(league(client))

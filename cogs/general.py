@@ -248,5 +248,5 @@ class general(commands.Cog):
       await asyncio.sleep(2)
       await msg.delete()
 
-def setup(client):
-    client.add_cog(general(client))
+async def setup(client):
+    await client.add_cog(general(client))

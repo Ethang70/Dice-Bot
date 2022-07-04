@@ -14,11 +14,12 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-version = "0.6"
+version = "0.7a"
 token = config('TOKEN')
 prefix = config('PREFIX')
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16)
+intents = discord.Intents.all()
 
 def get_prefix(bot, message):
     if message.channel.id == (config('MUSIC_CHANNEL_ID')):
@@ -26,7 +27,7 @@ def get_prefix(bot, message):
     else:
         return prefix
 
-client = commands.Bot(command_prefix=get_prefix, help_command=None)
+client = commands.Bot(command_prefix=get_prefix, help_command=None, intents=intents)
 
 # Load Extension
 @client.command()
@@ -56,7 +57,7 @@ async def on_ready():
 
     for filename in os.listdir('./cogs'):
       if filename.endswith('.py'):
-        client.load_extension(f'cogs.{filename[:-3]}')
+        await client.load_extension(f'cogs.{filename[:-3]}')
         print(bcolors.OKBLUE + filename + " found" + bcolors.ENDC)
 
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd | v' + version))
