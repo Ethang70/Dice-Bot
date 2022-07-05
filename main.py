@@ -14,7 +14,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-version = "0.7a"
+version = "1.0a"
 token = config('TOKEN')
 prefix = config('PREFIX')
 botColour = config("COLOUR")
@@ -29,19 +29,14 @@ def get_prefix(bot, message):
 
 client = commands.Bot(command_prefix=get_prefix, help_command=None, intents=intents)
 
-# Load Extension
-@client.command()
-async def load(ctx, extension):
-  client.load_extension(f'cogs{extension}')
-
-# Unload Extension
-@client.command()
-async def unload(ctx, extension):
-  client.unload_extension(f'cogs{extension}')
-
 # Loading all cogs
 print(bcolors.HEADER + "Logging in || Bot running version " + version + bcolors.ENDC)
 
+tree = client.tree
+
+@tree.command(name = "test", description = "testing")
+async def slashtest(interaction: discord.Interaction):
+  await interaction.response.send_message(f"I am working!", ephemeral = True)
 
 # Function to remove prefix from string
 def remove_prefix(text, prefix):
@@ -61,7 +56,7 @@ async def on_ready():
         print(bcolors.OKBLUE + filename + " found" + bcolors.ENDC)
 
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd | v' + version))
-
+    await tree.sync()
 
 @client.event # Triggers when a message is sent in the chat
 async def on_message(message): 

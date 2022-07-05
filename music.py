@@ -15,7 +15,6 @@ import threading
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
-
 class LavalinkVoiceClient(discord.VoiceClient):
     def __init__(self, client: discord.Client, channel: discord.abc.Connectable):
         self.client = client
@@ -90,12 +89,58 @@ class Music(commands.Cog):
         self.channel_id = 0
         self.message_id = 0
         self.table = config('MYSQLTB')
+        self.music_button_view = self.music_button_view()
 
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(bot.user.id)
             bot.lavalink.add_node(config("LLIP"), 2333, config("LLPASS"), 'aus', 'default-node', 3600)  # Host, Port, Password, Region, Name
 
         lavalink.add_event_hook(self.track_hook)
+
+    class music_button_view(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout = None)
+        
+            self.add_item(self.PauseButton())
+            self.add_item(self.StopButton())
+            self.add_item(self.SkipButton())
+            self.add_item(self.LoopButton())
+            self.add_item(self.ShuffleButton())
+
+        class PauseButton(discord.ui.Button['pause']):
+            def __init__(self):
+                super().__init__(style=discord.ButtonStyle.green, label="▶")
+
+            async def callback(self, interaction: discord.Interaction):
+                await Music.pause(self, interaction)
+
+        class StopButton(discord.ui.Button['stop']):
+            def __init__(self):
+                super().__init__(style=discord.ButtonStyle.green, label="⬜")
+
+            async def callback(self, interaction: discord.Interaction):
+                await Music.disconnect(interaction)
+
+        class SkipButton(discord.ui.Button['skip']):
+            def __init__(self):
+                super().__init__(style=discord.ButtonStyle.green, label="▶▶|")
+
+            async def callback(self, interaction: discord.Interaction):
+                await Music.skip(interaction)
+
+        class LoopButton(discord.ui.Button['loop']):
+            def __init__(self):
+                super().__init__(style=discord.ButtonStyle.green, label="🔁")
+
+            async def callback(self, interaction: discord.Interaction):
+                await Music.loop(interaction)
+
+        class ShuffleButton(discord.ui.Button['shuffle']):
+            def __init__(self):
+                super().__init__(style=discord.ButtonStyle.green, label="🔀")
+
+            async def callback(self, interaction: discord.Interaction):
+                await Music.shuffle(interaction)
 
 
     def cog_unload(self):
@@ -207,7 +252,7 @@ class Music(commands.Cog):
             embed.add_field(name="Status: ", value="Idle")
             embed.set_image(url=config("BKG_IMG"))
             embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
-            await message.edit(content="To add a song join voice, and type song or url here",embed=embed)
+            await message.edit(content="To add a song join voice, and type song or url here",embed=embed, view=self.music_button_view)
             return
         else:
             identifier = player.current.identifier
@@ -244,7 +289,7 @@ class Music(commands.Cog):
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
             embed.add_field(name="Status: ", value=status)
             embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
-            await message.edit(embed=embed)
+            await message.edit(embed=embed, view=self.music_button_view)
 
     def check_conditions(self, ctx, player):
         if not player.is_connected:
@@ -270,7 +315,7 @@ class Music(commands.Cog):
 
     async def pause(self, ctx):
       """ Pauses/Unpauses current song """
-      player = self.bot.lavalink.player_manager.get(ctx.guild.id)
+      player = lavalink.player_manager.get(ctx.guild.id)
 
       if not self.check_conditions(ctx, player): 
           return
@@ -280,18 +325,8 @@ class Music(commands.Cog):
             await asyncio.sleep(1)
             await msg.delete()
             return
-
-      if player.paused:
-        await player.set_pause(False)
-        embed = functions.discordEmbed(None, "Unpaused Song", int(config('COLOUR'), 16))
-      else:
-        await player.set_pause(True)
-        embed = functions.discordEmbed(None, "Paused Song", int(config('COLOUR'), 16))
       
       await self.update_embed(player)
-      msg = await ctx.message.channel.send(embed=embed)
-      await asyncio.sleep(1)
-      await msg.delete()  
 
     @commands.command(aliases=['dc'])
     async def disconnect(self, ctx):
@@ -469,70 +504,6 @@ class Music(commands.Cog):
                 await ctx.invoke(client.get_command('play'), query=message.content)
             else:
               await del_msg(message)
-      
-          
-    @commands.Cog.listener()
-    async def on_raw_reaction_add(self, reaction):
-        client = self.bot
-        #message_id = self.message_id
-        ctx = reaction
-        ctx.channel = await self.bot.fetch_channel(reaction.channel_id)
-        ctx.message = await ctx.channel.fetch_message(reaction.message_id)
-        ctx = await client.get_context(ctx.message)
-        ctx.author = reaction.member
-
-        # So the bot doesnt react to own reactions
-        if ctx.author == client.user:
-          return
-        
-        # Check that the reaction is on the music message
-
-        guild_id = ctx.message.guild.id
-
-        self.mydb = mysql.connector.connect(
-          host = config("MYSQLIP"),
-          user = config("MYSQLUSER"),
-          password = config("MYSQLPASS"),
-          database = config("MYSQLDB")
-        )
-        self.db = self.mydb.cursor()
-
-        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
-        val = (guild_id,)
-        self.db.execute(sql, val)
-
-        result = self.db.fetchall()
-        
-        if len(result) > 0:
-          for x in result:
-            self.channel_id = x[2]
-            self.message_id = x[3]
-
-          if reaction.message_id != self.message_id:
-              return
-          
-          emojir = str(reaction.emoji)
-
-          if emojir == "⏯":
-              await ctx.message.remove_reaction(emojir, ctx.author)
-              return await self.pause(ctx)
-          elif emojir == "⏹":
-              await ctx.message.remove_reaction(emojir, ctx.author)
-              return await self.disconnect(ctx)
-          elif emojir == "⏭":
-              await ctx.message.remove_reaction(emojir, ctx.author)
-              return await self.skip(ctx)
-          elif emojir == "🔁":
-              await ctx.message.remove_reaction(emojir, ctx.author)
-              return await self.loop(ctx)
-          elif emojir == "🔀":
-              await ctx.message.remove_reaction(emojir, ctx.author)
-              return await self.shuffle(ctx)
-          await ctx.message.remove_reaction(emojir, ctx.author)
-          await client.process_commands(ctx.message)
-        else:
-          return
-
 
     @commands.command()
     async def play(self, ctx, *, query: str):

@@ -11,11 +11,42 @@ prefix = config('PREFIX')
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16)
 
+class PauseButton(discord.ui.Button['pause']):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.green, label="▶")
+
+class StopButton(discord.ui.Button['stop']):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.green, label="⬜")
+
+class SkipButton(discord.ui.Button['skip']):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.green, label="▶▶|")
+
+class LoopButton(discord.ui.Button['loop']):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.green, label="🔁")
+
+class ShuffleButton(discord.ui.Button['shuffle']):
+    def __init__(self):
+        super().__init__(style=discord.ButtonStyle.green, label="🔀")
+
+class music_button_view(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout = None)
+      
+        self.add_item(PauseButton())
+        self.add_item(StopButton())
+        self.add_item(SkipButton())
+        self.add_item(LoopButton())
+        self.add_item(ShuffleButton())
+
+
 class general(commands.Cog):
   def __init__(self, client):
     self.client = client
     self.table = config('MYSQLTB')
-
+    
   ### Command to roll X times with Y number of specified faces ##
   @commands.command()
   async def rtd(self, ctx, noRoll=None, noFace=None):
@@ -148,7 +179,6 @@ class general(commands.Cog):
 
     await ctx.channel.purge(limit=amount)
 
-
   ### Sets up the channel and message for the music bot ###
   @commands.command()
   async def setup(self, ctx):
@@ -184,12 +214,7 @@ class general(commands.Cog):
           embed.add_field(name="Status: ", value="Idle")
           embed.set_image(url=config("BKG_IMG"))
           embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
-          message = await channel.send(content="To add a song join voice, and type song or url here",embed=embed)
-          await message.add_reaction('⏯')
-          await message.add_reaction('⏹')
-          await message.add_reaction('⏭')
-          await message.add_reaction('🔁')
-          await message.add_reaction('🔀')
+          message = await channel.send(content="To add a song join voice, and type song or url here",embed=embed, view=music_button_view())
 
           channel_id = message.channel.id
           msg_id = message.id
