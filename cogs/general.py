@@ -11,37 +11,6 @@ prefix = config('PREFIX')
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16)
 
-class PauseButton(discord.ui.Button['pause']):
-    def __init__(self):
-        super().__init__(style=discord.ButtonStyle.green, label="▶")
-
-class StopButton(discord.ui.Button['stop']):
-    def __init__(self):
-        super().__init__(style=discord.ButtonStyle.green, label="⬜")
-
-class SkipButton(discord.ui.Button['skip']):
-    def __init__(self):
-        super().__init__(style=discord.ButtonStyle.green, label="▶▶|")
-
-class LoopButton(discord.ui.Button['loop']):
-    def __init__(self):
-        super().__init__(style=discord.ButtonStyle.green, label="🔁")
-
-class ShuffleButton(discord.ui.Button['shuffle']):
-    def __init__(self):
-        super().__init__(style=discord.ButtonStyle.green, label="🔀")
-
-class music_button_view(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout = None)
-      
-        self.add_item(PauseButton())
-        self.add_item(StopButton())
-        self.add_item(SkipButton())
-        self.add_item(LoopButton())
-        self.add_item(ShuffleButton())
-
-
 class general(commands.Cog):
   def __init__(self, client):
     self.client = client
