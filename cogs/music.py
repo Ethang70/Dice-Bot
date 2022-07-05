@@ -1,0 +1,612 @@
+import wavelink
+import asyncio # For asyncio.sleep()
+import mysql.connector # To connect to music db
+import datetime # Used to convert time from S to HH:MM:SS
+import discord # Use discord components and embeds
+import math # Used for create queue pages
+import functions # Used for embed function
+
+from discord import app_commands # Used for slash commands
+from decouple import config # For .env vars
+from discord.ext import commands
+
+class Music(commands.Cog):
+    """Music cog to hold Wavelink related commands and listeners."""
+
+    def __init__(self, bot):
+        self.bot = bot
+        self.id = int(config('MUSIC_CHANNEL_MSG_ID'))
+        self.channel_id = 0
+        self.message_id = 0
+        self.table = config('MYSQLTB')
+
+        bot.loop.create_task(self.connect_nodes())
+
+    #### CLASSES FOR BUTTONS ####
+
+    class music_button_view(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout = None)
+        
+            self.add_item(Music.PauseButton())
+            self.add_item(Music.StopButton())
+            self.add_item(Music.SkipButton())
+            # self.add_item(Music.LoopButton())
+            # self.add_item(Music.ShuffleButton())
+
+    class PauseButton(discord.ui.Button['pause']):
+        def __init__(self):
+            super().__init__(style=discord.ButtonStyle.danger, label="▶")
+
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer()
+            ctx = await interaction.client.get_context(interaction.message)
+
+            check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+            if check:
+                vc: wavelink.Player = ctx.voice_client
+
+                if vc.is_paused():
+                    await vc.resume()
+                else:
+                    await vc.pause()
+
+
+    class StopButton(discord.ui.Button['stop']):
+        def __init__(self):
+            super().__init__(style=discord.ButtonStyle.danger, label="⬜")
+
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer()
+            ctx = await interaction.client.get_context(interaction.message)
+
+            check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+            if check:
+                vc: wavelink.Player = ctx.voice_client
+                vc.queue.clear()
+                await Music.reset_embed(self, vc)
+                await vc.disconnect()
+
+
+    class SkipButton(discord.ui.Button['skip']):
+        def __init__(self):
+            super().__init__(style=discord.ButtonStyle.danger, label="▶▶|")
+            
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer()
+            ctx = await interaction.client.get_context(interaction.message)
+
+            check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+            if check:
+                vc: wavelink.Player = ctx.voice_client
+                end = vc.track.duration
+                await vc.seek(end*1000)
+
+    
+    # class LoopButton(discord.ui.Button['loop']):
+    #     def __init__(self):
+    #         super().__init__(style=discord.ButtonStyle.green, label="🔁")
+
+    #     # async def callback(self, interaction: discord.Interaction):
+    #     #     await Music.loop(interaction)
+
+    # class ShuffleButton(discord.ui.Button['shuffle']):
+    #     def __init__(self):
+    #         super().__init__(style=discord.ButtonStyle.green, label="🔀")
+
+    #     # async def callback(self, interaction: discord.Interaction):
+    #     #     await Music.shuffle(interaction)
+
+    #### GENERAL FUNCTIONS ####
+
+    async def connect_nodes(self):
+        """Connect to our Lavalink nodes."""
+        await self.bot.wait_until_ready()
+
+        await wavelink.NodePool.create_node(bot=self.bot,
+                                            host=config("LLIP"),
+                                            port=2333,
+                                            password=config("LLPASS"))
+            
+    # Checks thats conditions are right for interactions
+    async def check_cond(self, ctx, interaction, player):
+        result = await Music.connect_db(self, interaction.guild_id)
+
+        if len(result) > 0:
+          for x in result:
+            channel_id = x[2]
+            message_id = x[3]
+
+        if not ctx.voice_client or not player.is_connected():
+            msg = await ctx.send('Im not connected')
+            await Music.del_msg(self, msg)
+            return False
+        elif not (
+            (interaction.client.user.id in ctx.author.voice.channel.voice_states) and
+            (interaction.user.id in ctx.author.voice.channel.voice_states)
+        ):
+            msg = await ctx.send('You\'re not in my voice channel')
+            await Music.del_msg(self, msg)
+            return False
+        elif not ctx.author.voice:
+            msg = await ctx.send('You\'re not in a voice channel')
+            await Music.del_msg(self, msg)
+            return False
+        elif interaction.channel_id != channel_id:
+            msg = await ctx.send('Please use this command in the music channel')
+            return False
+        return True
+        
+    # Deletes message
+    async def del_msg(self, message):
+        await asyncio.sleep(0.5)
+        await message.delete()
+
+    # Converts HH:MM:SS to seconds
+    def get_sec(self, time_str :str):
+        """Get Seconds from time."""
+        seconds= 0
+        for part in time_str.split(':'):
+            seconds= seconds*60 + int(part, 10)
+        return seconds
+
+    # Connects to the database and returns inforamtion based on guild_id
+    async def connect_db(self, guild_id : int):
+        self.mydb = mysql.connector.connect(
+          host = config("MYSQLIP"),
+          user = config("MYSQLUSER"),
+          password = config("MYSQLPASS"),
+          database = config("MYSQLDB")
+        )
+        self.db = self.mydb.cursor()
+
+        sql = "SELECT * FROM " + config('MYSQLTB') + " WHERE guild_id = %s"
+        val = (guild_id,)
+        self.db.execute(sql, val)
+
+        result = self.db.fetchall()
+
+        return result
+
+    # Resets the music embed to default state
+    async def reset_embed(self, player):
+        prefix = config("PREFIX")
+        guild_id = str(player.guild.id)
+        channel_id = 0
+        message_id = 0
+
+        result = await Music.connect_db(self, guild_id)
+        
+        if len(result) > 0:
+          for x in result:
+            channel_id = x[2]
+            message_id = x[3]
+
+        channel = player.client.get_channel(channel_id)
+        message = await channel.fetch_message(message_id)
+        embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
+        embed.add_field(name="Queue: ", value="Empty")
+        embed.add_field(name="Status: ", value="Idle")
+        embed.set_image(url=config("BKG_IMG"))
+        embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
+        await message.edit(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view())
+
+    # Updates the music embed to reflect whats in the player
+    async def update_embed(self, player):
+        prefix = config("PREFIX")
+        guild_id = str(player.guild.id)
+        channel_id = 0
+        message_id = 0
+
+        result = await self.connect_db(guild_id)
+        
+        if len(result) > 0:
+          for x in result:
+            channel_id = x[2]
+            message_id = x[3]
+
+        channel = await self.bot.fetch_channel(channel_id)
+        message = await channel.fetch_message(message_id)
+        
+        if not player.is_connected or not player.is_playing:
+            Music.reset_embed(self,player)
+            return
+        else:
+            currentSong = player.track
+            identifier = currentSong.identifier
+            queue = player.queue
+            embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=currentSong.length)) + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
+            thumbnail = "https://i.ytimg.com/vi/" + identifier + "/hqdefault.jpg"
+
+            if queue.is_empty:
+                qDesc ='Empty'
+            else:
+                qDesc =''
+                if queue.count > 8:
+                    for i in range(0,7):
+                        song = queue._queue[i]
+                        qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                    offset = queue.count - 7
+                    qDesc += "and " + str(offset) + " more track(s)\n"
+                else:
+                    for i in range(0,queue.count):
+                        song = queue._queue[i]
+                        qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+            
+            if player.is_paused():
+                status = "Paused\n"
+            else:
+                status = "Playing\n"
+            
+            # if player.repeat:
+            #     status += " 🔁"
+            
+            # if player.shuffle:
+            #     status += "  🔀"
+            
+            embed.set_image(url=thumbnail)
+            embed.add_field(name="Queue: ", value=qDesc, inline=True)
+            embed.add_field(name="Status: ", value=status)
+            embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
+            await message.edit(embed=embed, view=self.music_button_view())
+
+    # Will play next track in queue or dc if no tracks left
+    async def next(self, player):
+        loop = False
+        if loop:
+            return await player.play(track)
+
+        if player.queue.is_empty:
+            await player.guild.voice_client.disconnect(force=True)
+            await Music.reset_embed(self, player)
+        else:
+            next_song = player.queue.get()
+            await player.play(next_song)
+
+    #### LISTENERS ####
+
+    # Triggers when a track starts playing
+    @commands.Cog.listener()
+    async def on_wavelink_track_start(self, player: wavelink.Player, track: wavelink.Track):
+        await self.update_embed(player)
+
+    # Triggers when a track ends 
+    # Either by full run through or skip
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason):
+        await self.next(player)
+        if player.is_playing():
+            await self.update_embed(player)
+
+    # Triggers when a connection to a node has been established
+    @commands.Cog.listener()
+    async def on_wavelink_node_ready(self, node: wavelink.Node):
+        print(f'Node: <{node.identifier}> is ready!')
+
+    # Triggers when any message is sent
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        bot = self.bot
+
+        # So the bot doesn't react to its own messages.
+        if message.author == bot.user:
+            return
+        
+        result = await self.connect_db(message.guild.id)
+
+        if len(result) > 0:
+            for x in result:
+                self.channel_id = x[2]
+                self.message_id = x[3]
+
+            if message.channel.id == self.channel_id:
+                if not message.content.startswith(config('PREFIX')):
+                    ctx = await bot.get_context(message)
+                    asyncio.get_event_loop().create_task(self.del_msg(message))
+                    ctx.command = bot.get_command('play')
+                    await self.cog_before_invoke(ctx)
+                    await ctx.invoke(bot.get_command('play'), query=message.content)
+                else:
+                    await self.del_msg(message)
+
+
+    #### COMMANDS ####
+
+    # Play a song given a query, joins a voicechannel if not already in one
+    @commands.command()
+    async def play(self, ctx: commands.Context, *, query: str):
+        if query.startswith("https://www.youtube.com/playlist?"):
+            tracks = await wavelink.YouTubePlaylist.search(query=query)
+            tracks = tracks.tracks
+        else:
+            track = await wavelink.YouTubeTrack.search(query=query, return_first=True)
+            tracks = [track]
+
+        if tracks is None:
+            msg = await ctx.send.message("Error: Nothing found")
+            await asynio.sleep(2)
+            await msg.delete()
+
+        if not ctx.voice_client:
+            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+        else:
+            vc: wavelink.Player = ctx.voice_client
+
+        for track in tracks:
+            if vc.is_playing():
+                vc.queue.put(track)
+            else:
+                await vc.play(track)
+        await self.update_embed(vc)
+
+    # Moves a song position in the queue to one specified
+    @app_commands.command(name = "mv", description = "Change a songs position in queue")
+    @app_commands.describe(song_number = "Song number in queue", move_number = "New position in queue")
+    async def move(self, interaction: discord.Interaction, song_number: int, move_number: int):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+            if vc.queue.is_empty:
+                return
+        
+            current = song_number - 1
+            new = move_number - 1
+
+            if current > len(vc.queue)-1 or current < 0:
+                await interaction.response.send_message('Current index out of bounds')
+                await asyncio.sleep(1)
+                return await interaction.delete_original_message()
+        
+            if new > len(vc.queue)-1 or new < 0:
+                await interaction.response.send_message('New index out of bounds')
+                await asyncio.sleep(1)
+                return await interaction.delete_original_message()
+
+            song = vc.queue._queue[current]
+            
+            del vc.queue._queue[current]
+            queue = vc.queue
+
+            for i in range(len(queue)-1, new):
+                if i == len(queue) -1:
+                    queue.put(queue._queue[i])
+                else:
+                    queue._queue[i+1] = queue._queue[i]
+        else:
+            return
+
+        vc.queue.put_at_index(new, song)
+        await self.update_embed(vc)
+        await interaction.response.send_message('Moved ' + song.title + ' from ' + str(current) + ' to ' + str(new))
+        await asyncio.sleep(4)
+        await interaction.delete_original_message()
+
+    # Removes a song from queue given its queue index
+    @app_commands.command(name = "rm", description = "Remove song from queue")
+    @app_commands.describe(song_number = "Song number in queue")
+    async def remove(self, interaction: discord.Interaction, song_number: int):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+            if vc.queue.is_empty:
+                return
+            song = vc.queue._queue[song_number-1]
+            del vc.queue._queue[song_number-1]
+
+            await interaction.response.send_message("Song removed: " + song.title)
+            await self.update_embed(vc)
+            await asyncio.sleep(0.7)
+            await interaction.delete_original_message()
+
+    # Disconnects the bot from the voice channel and clears player queue
+    @app_commands.command(name = "dc", description = "Disconnect bot from voice")
+    async def disconnect(self, interaction: discord.Interaction):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+            vc.queue.clear()
+            await Music.reset_embed(self, vc)
+            await vc.disconnect()
+            msg = await ctx.send('Disconnected')
+            await asyncio.sleep(1)
+            await msg.delete()
+
+    # Outputs the queue in pages of 10 songs each, page number needs to be inputted
+    @app_commands.command(name = "q", description = "Shows music queue")
+    @app_commands.describe(page = "Page number of queue")
+    async def queue(self, interaction: discord.Interaction, page: int = 1):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+        
+        queue = vc.queue
+
+        if len(queue) == 0:
+                await interaction.response.send_message('No songs in queue | Why not queue something?')
+                await asyncio.sleep(1)
+                await interaction.delete_original_message()
+                return
+        
+        qDesc = ''
+
+        items_per_page = 10
+        pages = math.ceil(len(queue) / items_per_page)
+
+        if page > pages:
+            await interaction.response.send_message('Invalid page: Max page is ' + str(pages))
+            await asyncio.sleep(1)
+            await interaction.delete_original_message()
+            return
+
+        start = (page - 1) * items_per_page
+        if len(queue) < items_per_page:
+            end = len(queue)
+        elif len(queue) - ((page -1) * items_per_page) > items_per_page:
+            end = start + items_per_page
+        else:
+            end = start + len(queue) - ((page -1) * items_per_page)
+
+
+        for i in range(start,end):
+            song = queue._queue[i]
+            qDesc += f'[{str(i + 1) + ". " + song.title}]({song.uri})' + '\n'
+            
+        
+        embed = functions.discordEmbed("Queue", qDesc, int(config('COLOUR'), 16))
+        embed.set_footer(text=f'Viewing Page {page}/{pages}')
+        await interaction.response.send_message(embed=embed)
+        await asyncio.sleep(7)
+        await interaction.delete_original_message()
+
+    # Sends a message containing the current runtime of the song
+    @app_commands.command(name = "np", description = "Shows information about whats currently playing")
+    async def now(self, interaction: discord.Interaction):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+            current_song  = vc.track
+            pos = str(datetime.timedelta(seconds=int(vc.position))) 
+            dur = str(datetime.timedelta(seconds=current_song.length)) 
+
+            song = f'**[{current_song.title}]({current_song.uri})**\n({pos}/{dur})'
+            embed = discord.Embed(color= int(config('COLOUR'), 16), title='Now Playing', description=song)
+            msg = await ctx.send(embed=embed)
+            await asyncio.sleep(5)
+            await msg.delete()
+
+
+    # Seeks out and jumps to a point in a song based on time given
+    @app_commands.command(name = "seek", description = "Jump to a time in the song")
+    @app_commands.describe(time = "Time to jump to in (HH:)MM:SS")
+    async def seek(self, interaction: discord.Interaction, time: str):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+            time_msec = self.get_sec(time) * 1000
+
+            if not time_msec:
+                return await ctx.send('You need to specify a time to skip to')
+
+            await vc.seek(time_msec)
+            msg = await ctx.send(f'Moved track to ' + time)
+            await asyncio.sleep(1)
+            await msg.delete()
+
+    # Adds a volume filter to the player, up to volume increase of 500%
+    @app_commands.command(name = "vol", description = "Change volume of the player")
+    @app_commands.describe(vol = "Volume in percent (Goes up to 500%) (No need for %)")
+    async def volume(self, interaction: discord.Interaction, vol: int):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+            
+            true_volume = vol/100
+
+            if true_volume > 5 or true_volume < 0:
+                return await ctx.send('Invalid volume size, please try between 0-500')
+            
+            filter = wavelink.Filter(volume = true_volume)
+            await vc.set_filter(filter)
+            msg = await ctx.send(f'🔈 | Set to {vol}%')
+            await asyncio.sleep(1)
+            await msg.delete()
+
+    # Only really to be used in the even the embed is stuck/not updated
+    @app_commands.command(name = "update", description = "Updates the music embed if stuck")
+    async def update(self, interaction: discord.Interaction):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+        if check:
+            vc: wavelink.Player = ctx.voice_client
+            await self.update_embed(vc)
+            await interaction.response.send_message(f"Updated!", ephemeral = True)
+        else:
+            await Music.reset_embed(self, interaction)
+
+    # Sets up the channel to take in queries & commands and adds to database
+    @app_commands.command(name = "setup", description = "Setups up music channel")
+    async def setup(self, interaction: discord.Interaction):
+        ctx = await interaction.client.get_context(interaction)
+        if not ctx.author.guild_permissions.administrator:
+            await interaction.response.send_message("You have insufficient permissions", ephemeral = True)
+            return
+
+        result = await self.connect_db(interaction.guild_id)   
+
+        if len(result) > 0:  
+            await interaction.response.send_message("Music channel already set up :)", ephemeral = True)
+        else:
+            channel = await ctx.guild.create_text_channel("music")
+            guild_id = interaction.guild_id
+
+            embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
+            embed.add_field(name="Queue: ", value="Empty")
+            embed.add_field(name="Status: ", value="Idle")
+            embed.set_image(url=config("BKG_IMG"))
+            embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
+            message = await channel.send(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view())
+
+            channel_id = message.channel.id
+            msg_id = message.id
+            
+            sql = "INSERT INTO " + self.table + " (guild_id, channel_id, message_id) VALUES (%s, %s, %s)"
+            val = (guild_id, channel_id, msg_id) 
+            self.db.execute(sql, val)
+            self.mydb.commit()
+            await interaction.response.send_message("Channel now setup", ephemeral = True)
+
+
+    # Removes the music channel and its entry in the database
+    @app_commands.command(name = "terminate", description = "Removes music channel")
+    async def terminate(self, interaction: discord.Interaction):
+        ctx = await interaction.client.get_context(interaction)
+        if not ctx.author.guild_permissions.administrator:
+            await interaction.response.send_message("You have insufficient permissions", ephemeral = True)
+            return
+
+        result = await self.connect_db(interaction.guild_id)
+
+        if len(result) > 0:
+            for x in result:
+                channel_id = x[2]
+                message_id = x[3]
+                channel = interaction.client.get_channel(channel_id)
+                await channel.delete()
+
+                guild_id = interaction.guild_id
+                mydb = mysql.connector.connect(
+                host = config("MYSQLIP"),
+                user = config("MYSQLUSER"),
+                password = config("MYSQLPASS"),
+                database = config("MYSQLDB")
+                )
+                db = mydb.cursor()
+
+                sql = "DELETE FROM " + self.table + " WHERE guild_id = %s"
+                val = (guild_id,)
+                db.execute(sql, val)
+                mydb.commit()
+        else:
+            await interaction.response.send_message("There is no channel setup, please use /setup", ephemeral = True)
+
+async def setup(bot):
+    await bot.add_cog(Music(bot))
+    

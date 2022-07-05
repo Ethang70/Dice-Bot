@@ -34,9 +34,9 @@ print(bcolors.HEADER + "Logging in || Bot running version " + version + bcolors.
 
 tree = client.tree
 
-@tree.command(name = "test", description = "testing")
-async def slashtest(interaction: discord.Interaction):
-  await interaction.response.send_message(f"I am working!", ephemeral = True)
+# @tree.command(name = "test", description = "testing")
+# async def slashtest(interaction: discord.Interaction):
+#   await interaction.response.send_message(f"I am working!", ephemeral = True)
 
 # Function to remove prefix from string
 def remove_prefix(text, prefix):
