@@ -504,7 +504,7 @@ class Music(commands.Cog):
 
         vc.queue.put_at_index(new, song)
         await self.update_embed(vc)
-        embed = functions.discordEmbed('Move', 'Moved ' + song.title + ' from ' + str(current+2) + ' to ' + str(new+2), botColourInt)
+        embed = functions.discordEmbed('Move', 'Moved ' + song.title + ' from ' + str(current+1) + ' to ' + str(new+1), botColourInt)
         await interaction.response.send_message(embed=embed)
         await asyncio.sleep(4)
         await interaction.delete_original_message()
