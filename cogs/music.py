@@ -5,10 +5,14 @@ import datetime # Used to convert time from S to HH:MM:SS
 import discord # Use discord components and embeds
 import math # Used for create queue pages
 import functions # Used for embed function
+import random # Used for shuffle selection song index
 
 from discord import app_commands # Used for slash commands
 from decouple import config # For .env vars
 from discord.ext import commands
+
+botColour = config("COLOUR")
+botColourInt = int(botColour, 16) # Colour to be used on embeds
 
 class Music(commands.Cog):
     """Music cog to hold Wavelink related commands and listeners."""
@@ -25,18 +29,39 @@ class Music(commands.Cog):
     #### CLASSES FOR BUTTONS ####
 
     class music_button_view(discord.ui.View):
-        def __init__(self):
+        def __init__(self, paused: bool = True, loop: int = 0, shuffle: int = 0, playing: bool = True):
             super().__init__(timeout = None)
+            self.paused = paused
+            self.loops = loop
+            self.shuffle = shuffle
+            self.playing = playing
         
-            self.add_item(Music.PauseButton())
+            if playing:
+                if self.paused:
+                    self.add_item(Music.PauseButton("▶", discord.ButtonStyle.green))
+                else:
+                    self.add_item(Music.PauseButton("||", discord.ButtonStyle.danger))
+            else:
+                self.add_item(Music.PauseButton("▶", discord.ButtonStyle.danger))
+            
             self.add_item(Music.StopButton())
             self.add_item(Music.SkipButton())
-            # self.add_item(Music.LoopButton())
-            # self.add_item(Music.ShuffleButton())
+            
+            if self.loops == 0:
+                self.add_item(Music.LoopButton(discord.ButtonStyle.danger))
+            elif self.loops == 1:
+                self.add_item(Music.LoopButton(discord.ButtonStyle.green))
+            else:
+                self.add_item(Music.LoopButton(discord.ButtonStyle.blurple))
+            
+            if self.shuffle == 0:
+                self.add_item(Music.ShuffleButton(discord.ButtonStyle.danger))
+            else:
+                self.add_item(Music.ShuffleButton(discord.ButtonStyle.green))
 
     class PauseButton(discord.ui.Button['pause']):
-        def __init__(self):
-            super().__init__(style=discord.ButtonStyle.danger, label="▶")
+        def __init__(self, label : str, style):
+            super().__init__(style=style, label=label)
 
         async def callback(self, interaction: discord.Interaction):
             await interaction.response.defer()
@@ -51,7 +76,8 @@ class Music(commands.Cog):
                     await vc.resume()
                 else:
                     await vc.pause()
-
+                
+                await Music.update_embed(self, vc)
 
     class StopButton(discord.ui.Button['stop']):
         def __init__(self):
@@ -86,19 +112,66 @@ class Music(commands.Cog):
                 await vc.seek(end*1000)
 
     
-    # class LoopButton(discord.ui.Button['loop']):
-    #     def __init__(self):
-    #         super().__init__(style=discord.ButtonStyle.green, label="🔁")
+    class LoopButton(discord.ui.Button['loop']):
+        def __init__(self, style):
+            super().__init__(style=style, label="⟳")
 
-    #     # async def callback(self, interaction: discord.Interaction):
-    #     #     await Music.loop(interaction)
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer()
+            ctx = await interaction.client.get_context(interaction.message)
+            check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
-    # class ShuffleButton(discord.ui.Button['shuffle']):
-    #     def __init__(self):
-    #         super().__init__(style=discord.ButtonStyle.green, label="🔀")
+            if check:
+                vc: wavelink.Player = ctx.voice_client
 
-    #     # async def callback(self, interaction: discord.Interaction):
-    #     #     await Music.shuffle(interaction)
+                result = await Music.connect_db(self, interaction.guild_id)
+
+                if len(result) > 0:
+                    for x in result:
+                        loop = x[4]
+                
+                loop = loop + 1
+
+                if loop > 2:
+                    loop = 0
+
+                sql = "UPDATE " + config('MYSQLTB') + " SET loop_b = %s WHERE guild_id = %s"
+                val = (loop, interaction.guild_id) 
+                self.db.execute(sql, val)
+                self.mydb.commit()
+
+            await Music.update_embed(self, vc)
+
+
+    class ShuffleButton(discord.ui.Button['shuffle']):
+        def __init__(self, style):
+            super().__init__(style=style, label="↹")
+
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer()
+            ctx = await interaction.client.get_context(interaction.message)
+            check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+
+            if check:
+                vc: wavelink.Player = ctx.voice_client
+
+                result = await Music.connect_db(self, interaction.guild_id)
+
+                if len(result) > 0:
+                    for x in result:
+                        shuffle = x[5]
+
+                if shuffle == 0:
+                    shuffle = 1
+                else:
+                    shuffle = 0
+                    
+                sql = "UPDATE " + config('MYSQLTB') + " SET shuffle_b = %s WHERE guild_id = %s"
+                val = (shuffle, interaction.guild_id) 
+                self.db.execute(sql, val)
+                self.mydb.commit()
+            
+            await Music.update_embed(self, vc)
 
     #### GENERAL FUNCTIONS ####
 
@@ -121,22 +194,31 @@ class Music(commands.Cog):
             message_id = x[3]
 
         if not ctx.voice_client or not player.is_connected():
-            msg = await ctx.send('Im not connected')
-            await Music.del_msg(self, msg)
+            embed = functions.discordEmbed("Failed Check", "Im not connected", botColourInt)
+            await interaction.response.send_message(embed=embed)
+            await asyncio.sleep(1)
+            await interaction.delete_original_message()
             return False
         elif not (
             (interaction.client.user.id in ctx.author.voice.channel.voice_states) and
             (interaction.user.id in ctx.author.voice.channel.voice_states)
         ):
-            msg = await ctx.send('You\'re not in my voice channel')
-            await Music.del_msg(self, msg)
+            embed = functions.discordEmbed("Failed Check", 'You\'re not in my voice channel', botColourInt)
+            await interaction.response.send_message(embed=embed)
+            await asyncio.sleep(1)
+            await interaction.delete_original_message()
             return False
         elif not ctx.author.voice:
-            msg = await ctx.send('You\'re not in a voice channel')
-            await Music.del_msg(self, msg)
+            embed = functions.discordEmbed("Failed Check", 'You\'re not in a voice channel', botColourInt)
+            await interaction.response.send_message(embed=embed)
+            await asyncio.sleep(1)
+            await interaction.delete_original_message()
             return False
         elif interaction.channel_id != channel_id:
-            msg = await ctx.send('Please use this command in the music channel')
+            embed = functions.discordEmbed("Failed Check", 'Please use this command in the music channel', botColourInt)
+            await interaction.response.send_message(embed=embed)
+            await asyncio.sleep(1)
+            await interaction.delete_original_message()
             return False
         return True
         
@@ -192,7 +274,7 @@ class Music(commands.Cog):
         embed.add_field(name="Status: ", value="Idle")
         embed.set_image(url=config("BKG_IMG"))
         embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
-        await message.edit(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view())
+        await message.edit(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view(True, playing = False))
 
     # Updates the music embed to reflect whats in the player
     async def update_embed(self, player):
@@ -201,14 +283,22 @@ class Music(commands.Cog):
         channel_id = 0
         message_id = 0
 
-        result = await self.connect_db(guild_id)
+        result = await Music.connect_db(self, guild_id)
         
         if len(result) > 0:
           for x in result:
             channel_id = x[2]
             message_id = x[3]
+            loop = x[4]
+            shuffle = x[5]
 
-        channel = await self.bot.fetch_channel(channel_id)
+        channels = await player.guild.fetch_channels()
+
+        for channeli in channels:
+            if channeli.id == channel_id:
+                channel = channeli
+                break
+
         message = await channel.fetch_message(message_id)
         
         if not player.is_connected or not player.is_playing:
@@ -238,20 +328,24 @@ class Music(commands.Cog):
             
             if player.is_paused():
                 status = "Paused\n"
+                paused = True
             else:
                 status = "Playing\n"
-            
-            # if player.repeat:
-            #     status += " 🔁"
-            
-            # if player.shuffle:
-            #     status += "  🔀"
+                paused = False
+
+            if loop == 2:
+                status += " 🔂"
+            elif loop == 1:
+                status += " 🔁"
+
+            if shuffle == 1:
+                status += "  🔀"
             
             embed.set_image(url=thumbnail)
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
             embed.add_field(name="Status: ", value=status)
             embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
-            await message.edit(embed=embed, view=self.music_button_view())
+            await message.edit(embed=embed, view=Music.music_button_view(paused, loop, shuffle))
 
     # Will play next track in queue or dc if no tracks left
     async def next(self, player):
@@ -277,7 +371,34 @@ class Music(commands.Cog):
     # Either by full run through or skip
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason):
-        await self.next(player)
+        result = await Music.connect_db(self, player.guild.id)
+        
+        if len(result) > 0:
+          for x in result:
+            loop = x[4]
+            shuffle = x[5]
+        
+        if shuffle == 1:
+            if not player.queue.is_empty:
+                index = random.randint(0,player.queue.count-1)
+                strack = player.queue._queue[index]
+        
+        if loop == 0:
+            if shuffle == 1 and not player.queue.is_empty:
+                await player.play(strack)
+                del player.queue._queue[index]
+            else:
+                await self.next(player)
+        elif loop == 2:
+            await player.play(track)
+        else:
+            player.queue.put(track)
+            if shuffle == 1 and not player.queue.is_empty:
+                await player.play(strack)
+                del player.queue._queue[index]
+            else:
+                await self.next(player)
+
         if player.is_playing():
             await self.update_embed(player)
 
@@ -326,7 +447,8 @@ class Music(commands.Cog):
             tracks = [track]
 
         if tracks is None:
-            msg = await ctx.send.message("Error: Nothing found")
+            embed = functions.discordEmbed("Player", "Error: Nothing found", botColourInt)
+            msg = await ctx.send.message(embed=embed)
             await asynio.sleep(2)
             await msg.delete()
 
@@ -382,7 +504,8 @@ class Music(commands.Cog):
 
         vc.queue.put_at_index(new, song)
         await self.update_embed(vc)
-        await interaction.response.send_message('Moved ' + song.title + ' from ' + str(current) + ' to ' + str(new))
+        embed = functions.discordEmbed('Move', 'Moved ' + song.title + ' from ' + str(current+2) + ' to ' + str(new+2), botColourInt)
+        await interaction.response.send_message(embed=embed)
         await asyncio.sleep(4)
         await interaction.delete_original_message()
 
@@ -400,7 +523,8 @@ class Music(commands.Cog):
             song = vc.queue._queue[song_number-1]
             del vc.queue._queue[song_number-1]
 
-            await interaction.response.send_message("Song removed: " + song.title)
+            embed = functions.discordEmbed('Remove', "Song removed: " + song.title, botColourInt)
+            await interaction.response.send_message(embed=embed)
             await self.update_embed(vc)
             await asyncio.sleep(0.7)
             await interaction.delete_original_message()
@@ -416,9 +540,10 @@ class Music(commands.Cog):
             vc.queue.clear()
             await Music.reset_embed(self, vc)
             await vc.disconnect()
-            msg = await ctx.send('Disconnected')
+            embed = functions.discordEmbed(title = 'Disconnected', colour = botColourInt)
+            await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await msg.delete()
+            await interaction.delete_original_message()
 
     # Outputs the queue in pages of 10 songs each, page number needs to be inputted
     @app_commands.command(name = "q", description = "Shows music queue")
@@ -433,10 +558,11 @@ class Music(commands.Cog):
         queue = vc.queue
 
         if len(queue) == 0:
-                await interaction.response.send_message('No songs in queue | Why not queue something?')
-                await asyncio.sleep(1)
-                await interaction.delete_original_message()
-                return
+            embed = functions.discordEmbed("Queue", 'No songs in queue | Why not queue something?', int(config('COLOUR'), 16))
+            await interaction.response.send_message(embed=embed)
+            await asyncio.sleep(1)
+            await interaction.delete_original_message()
+            return
         
         qDesc = ''
 
@@ -444,7 +570,8 @@ class Music(commands.Cog):
         pages = math.ceil(len(queue) / items_per_page)
 
         if page > pages:
-            await interaction.response.send_message('Invalid page: Max page is ' + str(pages))
+            embed = functions.discordEmbed("Queue", 'Invalid page: Max page is ' + str(pages), int(config('COLOUR'), 16))
+            await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
             await interaction.delete_original_message()
             return
@@ -483,10 +610,9 @@ class Music(commands.Cog):
 
             song = f'**[{current_song.title}]({current_song.uri})**\n({pos}/{dur})'
             embed = discord.Embed(color= int(config('COLOUR'), 16), title='Now Playing', description=song)
-            msg = await ctx.send(embed=embed)
+            await interaction.response.send_message(embed=embed)
             await asyncio.sleep(5)
-            await msg.delete()
-
+            await interaction.delete_original_message()
 
     # Seeks out and jumps to a point in a song based on time given
     @app_commands.command(name = "seek", description = "Jump to a time in the song")
@@ -500,12 +626,14 @@ class Music(commands.Cog):
             time_msec = self.get_sec(time) * 1000
 
             if not time_msec:
-                return await ctx.send('You need to specify a time to skip to')
-
-            await vc.seek(time_msec)
-            msg = await ctx.send(f'Moved track to ' + time)
+                embed = functions.discordEmbed('Seek' , 'You need to specify a time to skip to', botColourInt)
+            else:
+                embed = functions.discordEmbed('Seek', 'Moved track to ' + time, botColourInt)
+                await vc.seek(time_msec)
+            
+            await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await msg.delete()
+            await interaction.delete_original_message()
 
     # Adds a volume filter to the player, up to volume increase of 500%
     @app_commands.command(name = "vol", description = "Change volume of the player")
@@ -520,13 +648,15 @@ class Music(commands.Cog):
             true_volume = vol/100
 
             if true_volume > 5 or true_volume < 0:
-                return await ctx.send('Invalid volume size, please try between 0-500')
-            
-            filter = wavelink.Filter(volume = true_volume)
-            await vc.set_filter(filter)
-            msg = await ctx.send(f'🔈 | Set to {vol}%')
+                embed = functions.discordEmbed('Volume' , 'Invalid volume size, please try between 0-500', botColourInt)
+            else:
+                filter = wavelink.Filter(volume = true_volume)
+                await vc.set_filter(filter)
+                embed = functions.discordEmbed('Volume' , f'🔈 | Set to {vol}%', botColourInt)
+
+            await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await msg.delete()
+            await interaction.delete_original_message()
 
     # Only really to be used in the even the embed is stuck/not updated
     @app_commands.command(name = "update", description = "Updates the music embed if stuck")
@@ -537,22 +667,27 @@ class Music(commands.Cog):
         if check:
             vc: wavelink.Player = ctx.voice_client
             await self.update_embed(vc)
-            await interaction.response.send_message(f"Updated!", ephemeral = True)
+            embed = functions.discordEmbed('Update' , 'Updated!', botColourInt)
+            await interaction.response.send_message(embed=embed, ephemeral = True)
         else:
             await Music.reset_embed(self, interaction)
+            embed = functions.discordEmbed('Update' , 'Reset!', botColourInt)
+            await interaction.response.send_message(embed=embed, ephemeral = True)
 
     # Sets up the channel to take in queries & commands and adds to database
     @app_commands.command(name = "setup", description = "Setups up music channel")
     async def setup(self, interaction: discord.Interaction):
         ctx = await interaction.client.get_context(interaction)
         if not ctx.author.guild_permissions.administrator:
-            await interaction.response.send_message("You have insufficient permissions", ephemeral = True)
+            embed = functions.discordEmbed('Setup' , 'You have insufficient permissions', botColourInt)
+            await interaction.response.send_message(embed=embed, ephemeral = True)
             return
 
         result = await self.connect_db(interaction.guild_id)   
 
-        if len(result) > 0:  
-            await interaction.response.send_message("Music channel already set up :)", ephemeral = True)
+        if len(result) > 0:
+            embed = functions.discordEmbed('Setup' , 'Music channel already set up :)', botColourInt)  
+            await interaction.response.send_message(embed=embed, ephemeral = True)
         else:
             channel = await ctx.guild.create_text_channel("music")
             guild_id = interaction.guild_id
@@ -571,7 +706,8 @@ class Music(commands.Cog):
             val = (guild_id, channel_id, msg_id) 
             self.db.execute(sql, val)
             self.mydb.commit()
-            await interaction.response.send_message("Channel now setup", ephemeral = True)
+            embed = functions.discordEmbed('Setup' , 'Channel now setup', botColourInt)
+            await interaction.response.send_message(embed=embed, ephemeral = True)
 
 
     # Removes the music channel and its entry in the database
@@ -605,7 +741,8 @@ class Music(commands.Cog):
                 db.execute(sql, val)
                 mydb.commit()
         else:
-            await interaction.response.send_message("There is no channel setup, please use /setup", ephemeral = True)
+            embed = functions.discordEmbed('Terminate' , 'There is no channel setup, please use /setup', botColourInt)
+            await interaction.response.send_message(embed=embed, ephemeral = True)
 
 async def setup(bot):
     await bot.add_cog(Music(bot))

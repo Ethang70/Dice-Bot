@@ -3,7 +3,9 @@ import asyncio
 import discord
 from decouple import config
 from discord.ext import commands
+from discord import app_commands # Used for slash commands
 import functions
+
 
 prefix = config('PREFIX')
 botColour = config("COLOUR")
@@ -14,44 +16,47 @@ class games(commands.Cog):
     self.client = client
 
   ### Guess the random number ###
-  @commands.command()
-  async def gtn(self, ctx, lowRange=None, highRange=None):
 
+  @app_commands.command(name = "gtn", description="Guess the random number game")
+  @app_commands.describe(lowrange = "Lowest number in range", highrange = "Highes number in range")
+  async def gtn(self, interaction: discord.Interaction, lowrange: int = None, highrange:int = None):
+    ctx = await interaction.client.get_context(interaction.message)
     # Usage of command
-    usage = functions.discordEmbed("Usage: ", config('PREFIX') + "gtn (Lower Range) (Upper Range)", int(config('COLOUR'), 16))
-
+    #usage = functions.discordEmbed("Usage: ", config('PREFIX') + "gtn (Lower Range) (Upper Range)", int(config('COLOUR'), 16))
+    lowRange = lowrange
+    highRange = highrange
     # Initial variable setup
     noArgs = False
     guessCounter = 0
     oldAnswer = ""
 
-    # If first argument is a string
-    if isinstance(lowRange, str):
-      if lowRange == "?" or lowRange.lower() == "help":
-        await ctx.message.channel.send(embed=usage)
-        return 0
-      elif lowRange is not None and highRange is None:
-        await ctx.message.channel.send(embed=usage)
-        return 0
+    # # If first argument is a string
+    # if isinstance(lowRange, str):
+    #   if lowRange == "?" or lowRange.lower() == "help":
+    #     await ctx.message.channel.send(embed=usage)
+    #     return 0
+    #   elif lowRange is not None and highRange is None:
+    #     await ctx.message.channel.send(embed=usage)
+    #     return 0
 
     if lowRange is None and highRange is None:
       noArgs = True
-    elif lowRange is not None and highRange is not None:
-      try:
-        lowRange = int(lowRange)
-        highRange = int(highRange)
-      except ValueError:
-        embed = functions.discordEmbed("Arguments invalid", "Type " + config('PREFIX') + "gtn ? for usage.", int(config('COLOUR'), 16))
-        await ctx.message.channel.send(embed=embed)
-        return 0
+    # elif lowRange is not None and highRange is not None:
+    #   try:
+    #     lowRange = int(lowRange)
+    #     highRange = int(highRange)
+    #   except ValueError:
+    #     embed = functions.discordEmbed("Arguments invalid", "Type " + config('PREFIX') + "gtn ? for usage.", int(config('COLOUR'), 16))
+    #     await ctx.message.channel.send(embed=embed)
+    #     return 0
 
     if not noArgs and highRange < lowRange:
       embed = functions.discordEmbed("Invalid range", "The upper range is less than the lower range.  Type " + config('PREFIX') + "gtn ? for usage.", int(config('COLOUR'), 16))
-      await ctx.message.channel.send(embed=embed)
+      await interaction.response.send_message(embed=embed)
       return 0
     elif not noArgs and highRange == lowRange:
       embed = functions.discordEmbed("Invalid range", "The upper range is equal to the lower range. Type " + config('PREFIX') + "gtn ? for usage.", int(config('COLOUR'), 16))
-      await ctx.message.channel.send(embed=embed)
+      await interaction.response.send_message(embed=embed)
       return 0
     if noArgs:
       lowRange = 0
@@ -60,8 +65,8 @@ class games(commands.Cog):
     theNumber = random.randint(lowRange, highRange)
     numberGuessed = False
     embed = functions.discordEmbed("Guess the number!", "The number is between " + str(lowRange) + " and " + str(highRange) + ".", int(config('COLOUR'), 16))
-    gameStartMSG = await ctx.message.channel.send("Guess the number: ", embed=embed)
-    gameID = gameStartMSG.id
+    await interaction.response.send_message("Guess the number: ", embed=embed)
+
 
     def checkGuess(self, ctx, userGuess):
       if isinstance(userGuess, str):
@@ -98,14 +103,12 @@ class games(commands.Cog):
         answer = await self.client.wait_for('message', timeout=30.0, check=check)
       except asyncio.TimeoutError:
         embed = functions.discordEmbed("You took too long to respond...", "Game over! The number was " + str(theNumber) + ".", int(config('COLOUR'), 16))
-        message = await ctx.channel.fetch_message(gameID)
-        await message.edit(embed=embed)
+        await interaction.edit_original_message(embed=embed)
         return 0
       else:
         guessCounter+=1
         embededGuess = checkGuess(self, ctx, answer.content)
-        message = await ctx.channel.fetch_message(gameID)
-        await message.edit(embed=embededGuess)
+        await interaction.edit_original_message(embed=embededGuess)
         if oldAnswer != "":
           oldMessage = await ctx.channel.fetch_message(oldAnswer.id)
           await oldMessage.delete()
