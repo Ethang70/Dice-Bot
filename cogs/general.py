@@ -6,6 +6,7 @@ from decouple import config
 from discord.ext import commands
 import functions
 import mysql.connector
+from discord import app_commands # Used for slash commands
 
 prefix = config('PREFIX')
 botColour = config("COLOUR")
@@ -17,25 +18,26 @@ class general(commands.Cog):
     self.table = config('MYSQLTB')
 
   ### Command to roll X times with Y number of specified faces ##
-  @commands.command()
-  async def rtd(self, ctx, noRoll=None, noFace=None):
+  @app_commands.command(name = "rtd", description = "Rolls a die. Can be specified with number of rolls and number of faces.")
+  @app_commands.describe(
+    number_rolls = "Number of times to roll the die. If not specified, it will roll once.",
+    number_faces = "Number of faces on the die. If not specified, it will have 6 sides.")
+  async def rtd(self, interaction: discord.Interaction, number_rolls: str=None, number_faces: str=None):
 
-    usage = functions.discordEmbed("Usage: ", config('PREFIX') + "rtd [Number of Rolls] [Number of faces on the die]", int(config('COLOUR'), 16))
+    ctx = await interaction.client.get_context(interaction)
 
     async def rolldie(self, ctx, noRoll, noFace):
       regexCheck = re.match("[0-9]", noRoll)
       isMatch = bool(regexCheck)
       if isMatch:
         embed = functions.discordEmbed("Rolling the dice", "Rolling " + noRoll + " dice with " + noFace + " faces", int(config('COLOUR'), 16))
-        msg = await ctx.message.channel.send("Dice Roll: ",embed=embed)
-        id = msg.id
+        await interaction.response.send_message(embed=embed)
         edited = False
 
         if int(noRoll) == 1:
           roll = random.randint(1, int(noFace))
           embed = functions.discordEmbed("You rolled a " + str(roll), None, int(config('COLOUR'), 16))
-          message = await ctx.channel.fetch_message(id)
-          await message.edit(embed=embed)
+          await interaction.edit_original_message(embed=embed)
         else:
           dieArr = [] # Define an empty array to store the rolls in
           for i in range(int(noRoll)):
@@ -47,8 +49,7 @@ class general(commands.Cog):
             if len(allDieRolls) > 4000:
               if edited is False:
                 embed = functions.discordEmbed("Performed " + noRoll + " rolls with a " + noFace + "-sided die.", allDieRolls, int(config('COLOUR'), 16))
-                message = await ctx.channel.fetch_message(id)
-                await message.edit(embed=embed)
+                await interaction.edit_original_message(embed=embed)
                 allDieRolls = "" # Clear the message
                 edited = True
               else:
@@ -57,196 +58,102 @@ class general(commands.Cog):
                 allDieRolls = "" # Clear the message
           if edited is False:
             embed = functions.discordEmbed("Performed " + noRoll + " rolls with a " + noFace + "-sided die.", allDieRolls, int(config('COLOUR'), 16))
-            message = await ctx.channel.fetch_message(id)
-            await message.edit(embed=embed)
+            msg = await ctx.message.channel.send(embed=embed)
           else:
             embed = functions.discordEmbed(None, allDieRolls, int(config('COLOUR'), 16))
-            msg = await ctx.message.channel.send(embed=embed)          
+            msg = await ctx.message.channel.send(embed=embed)       
       else:
-        await ctx.message.channel.send("Roll the dice: ", embed=usage) # RTD Help
+        await usage(self)
 
+    async def usage(self):
+      usage = functions.discordEmbed("Usage: ", "/" + "rtd\nnumber_rolls: Number of times to roll the die. If not specified, it will roll once.\nnumber_faces: Number of faces on the die. If not specified, it will have 6 sides.", int(config('COLOUR'), 16))
+      await interaction.response.send_message(embed=usage) # RTD Help
 
-    if noRoll is None and noFace is None:
+    if number_rolls is None and number_faces is None:
       await rolldie(self, ctx, "1", "6")
-    elif noRoll == "?" or noRoll == "help":
-      await ctx.message.channel.send("Roll the dice: ",embed=usage) # RTD Help
-    elif noRoll is not None and noFace is None:
-      await rolldie(self, ctx, noRoll, "6")
+    elif number_rolls == "?" or number_rolls == "help" or number_faces == "?" or number_faces == "help":
+      await usage(self)
+    elif number_rolls is not None and number_faces is None:
+      await rolldie(self, ctx, number_rolls, "6")
+    elif number_rolls is None and number_faces is not None:
+      await rolldie(self, ctx, "1", number_faces)
     else:
-      await rolldie(self, ctx, noRoll, noFace)
+      await rolldie(self, ctx, number_rolls, number_faces)
 
   ### Facts or Cap ###
-  @commands.command() 
-  async def factsorcap(self, ctx):
+  @app_commands.command(name = "factsorcap", description = "Bot says if the above message is facts or cap.")
+  async def factsorcap(self, interaction: discord.Interaction):
     randomFactOrCap = random.randint(1,2)
     if randomFactOrCap == 1:
-      facts = await ctx.message.channel.send("Fax!")
-      await facts.add_reaction('📠')
+      await interaction.response.send_message("Fax!")
+      fax = await interaction.original_message()
+      await fax.add_reaction('📠')
     else:
-      cap = await ctx.message.channel.send("Cap!")
+      await interaction.response.send_message("Cap!")
+      cap = await interaction.original_message()
       await cap.add_reaction('🇨')
       await cap.add_reaction('🅰️')
       await cap.add_reaction('🅿️') 
-    await ctx.message.delete()
     return randomFactOrCap
 
   ### Command for questions ###
-  @commands.command()
-  async def question(self, ctx, *arg):
-      question = False
-      quesHelp = False
+  @app_commands.command(name = "question", description = "Ask the bot a question and recieve and answer")
+  @app_commands.describe(question = "The question you want to ask (Must be a yes/no question")
+  async def question(self, interaction: discord.Interaction, question: str):
+      question_b = False
 
-      # Check for a question mark and whether its alone or help is requested
-      for args in arg:
-        if "?" in args:
-          question = True
-        if args == "?" and len(arg) == 1 or args == "help" and len(arg) == 1:
-          quesHelp = True
+      embed = discord.Embed(title = question, color = int(config('COLOUR'), 16))
 
-      if quesHelp == True:
-        await ctx.message.channel.send("Usage: " + config('PREFIX') + "question [Enter your yes or no question for me to answer, don't forget the question mark]")
-        return
-      if question == False:
-        await ctx.message.channel.send("Hmm, either that isn't a question or you forgot a question mark. Try again.")
-        return
-      response = random.randint(1,10)
-      if response == 1:
-        await ctx.message.channel.send("Yes!")
-      elif response == 2:
-        await ctx.message.channel.send("There's a very good chance.")
-      elif response == 3:
-        await ctx.message.channel.send("Certainly not.")
-      elif response == 4:
-        await ctx.message.channel.send("Potentially.")
-      elif response == 5:
-        await ctx.message.channel.send("I don't know.")
-      elif response == 6:
-        await ctx.message.channel.send("Of course!")
-      elif response == 7:
-        await ctx.message.channel.send("Wow... Of course not! Why would you even ask that?")
-      elif response == 8:
-        await ctx.message.channel.send("There is a chance.")
-      elif response == 9:
-        await ctx.message.channel.send("It's almost certain.")
-      elif response == 10:
-        await ctx.message.channel.send("No!")
+      # Check for a question mark
+      if "?" in question:
+        question_b = True
+
+      if question_b == False:
+        embed.description = "Hmm, either that isn't a question or you forgot a question mark. Try again."
+      else:
+        response = random.randint(1,10)
+        if response == 1:
+          embed.description = "Yes!"
+        elif response == 2:
+          embed.description = "There's a very good chance."
+        elif response == 3:
+          embed.description = "Certainly not."
+        elif response == 4:
+          embed.description = "Potentially."
+        elif response == 5:
+          embed.description = "I don't know."
+        elif response == 6:
+          embed.description = "Of course!"
+        elif response == 7:
+          embed.description = "Wow... Of course not! Why would you even ask that?"
+        elif response == 8:
+          embed.description = "There is a chance."
+        elif response == 9:
+          embed.description = "It's almost certain."
+        elif response == 10:
+          embed.description = "No!"
+
+      await interaction.response.send_message(embed=embed)
   
 
   ### Allows admins of guild to delete messages ###
-  @commands.command()
-  async def clear(self,ctx, amount: int):
-    if not ctx.author.guild_permissions.administrator:
-      ctx.message.send("You have insufficent permissions.")
-      return
-    
-    amount = int(amount)
+  @app_commands.command(name = "clear", description = "Mass clear messages")
+  @app_commands.describe(amount = "The amount of messages to delete")
+  async def clear(self, interaction: discord.Interaction, amount: int):
+    ctx = await interaction.client.get_context(interaction)
+
+    embed = discord.Embed(title = "Clear", color = int(config('COLOUR'), 16))      
     
     if(amount < 1):
-      return ctx.message.send("Enter a positive number")
+      embed.description = "Enter a positive number"
+      return await interaction.response.send_message(embed = embed, ephemeral = True)
     if(amount > 1000):
-      return ctx.message.send("Enter a smaller number")
+      embed.description = "Enter a smaller number"
+      return await interaction.response.send_message(embed = embed, ephemeral = True)
 
     await ctx.channel.purge(limit=amount)
+    embed.description = str(amount) + " messages cleared"
+    await interaction.response.send_message(embed = embed, ephemeral = True)
 
-
-  ### Sets up the channel and message for the music bot ###
-  @commands.command()
-  async def setup(self, ctx):
-        prefix = config("PREFIX")
-        guild_id = ctx.guild.id
-        self.mydb = mysql.connector.connect(
-          host = config("MYSQLIP"),
-          user = config("MYSQLUSER"),
-          password = config("MYSQLPASS"),
-          database = config("MYSQLDB")
-        )
-        self.db = self.mydb.cursor()
-        
-
-        sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
-        val = (guild_id,)
-        self.db.execute(sql, val)
-
-        result = self.db.fetchall()
-
-        if len(result) > 0:
-            for x in result:
-              channel_id = x[2]
-              
-            msg = await ctx.message.channel.send("Music channel already set up :)")
-            await asyncio.sleep(2)
-            await msg.delete()
-        else:
-          channel = await ctx.guild.create_text_channel("music")
-
-          embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
-          embed.add_field(name="Queue: ", value="Empty")
-          embed.add_field(name="Status: ", value="Idle")
-          embed.set_image(url=config("BKG_IMG"))
-          embed.set_footer(text="Other commands: " + prefix +"mv, " + prefix + "rm, " + prefix + "dc, " + prefix + "q, " + prefix + "np, " + prefix + "seek, " + prefix + "vol")
-          message = await channel.send(content="To add a song join voice, and type song or url here",embed=embed)
-          await message.add_reaction('⏯')
-          await message.add_reaction('⏹')
-          await message.add_reaction('⏭')
-          await message.add_reaction('🔁')
-          await message.add_reaction('🔀')
-
-          channel_id = message.channel.id
-          msg_id = message.id
-        
-          sql = "INSERT INTO server_info_test (guild_id, channel_id, message_id) VALUES (%s, %s, %s)"
-          val = (guild_id, channel_id, msg_id) 
-          self.db.execute(sql, val)
-          self.mydb.commit()
-
-### Removes server entry from music bot table ### 
-  @commands.command()
-  async def terminate(self, ctx):
-    if not ctx.author.guild_permissions.administrator:
-      ctx.message.send("You have insufficent permissions.")
-      return
-
-    prefix = config("PREFIX")
-    guild_id = ctx.guild.id
-    mydb = mysql.connector.connect(
-          host = config("MYSQLIP"),
-          user = config("MYSQLUSER"),
-          password = config("MYSQLPASS"),
-          database = config("MYSQLDB")
-    )
-    db = mydb.cursor()
-
-    sql = "SELECT * FROM " + self.table + " WHERE guild_id = %s"
-    val = (guild_id,)
-    db.execute(sql, val)
-
-    result = db.fetchall()
-
-    if len(result) > 0:
-        for x in result:
-          channel_id = x[2]
-          message_id = x[3]
-          channel = self.client.get_channel(channel_id)
-          await channel.delete()
-
-          guild_id = ctx.guild.id
-          mydb = mysql.connector.connect(
-          host = config("MYSQLIP"),
-          user = config("MYSQLUSER"),
-          password = config("MYSQLPASS"),
-          database = config("MYSQLDB")
-           )
-          db = mydb.cursor()
-
-          sql = "DELETE FROM server_info_test WHERE guild_id = %s"
-          val = (guild_id,)
-          db.execute(sql, val)
-          mydb.commit()
-
-    else:
-      msg = await ctx.message.channel.send("There is no music channel setup! Please use  " + prefix + "setup to setup the channel")
-      await asyncio.sleep(2)
-      await msg.delete()
-
-def setup(client):
-    client.add_cog(general(client))
+async def setup(client):
+    await client.add_cog(general(client))

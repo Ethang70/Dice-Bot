@@ -14,11 +14,12 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-version = "0.6"
+version = "1.0"
 token = config('TOKEN')
 prefix = config('PREFIX')
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16)
+intents = discord.Intents.all()
 
 def get_prefix(bot, message):
     if message.channel.id == (config('MUSIC_CHANNEL_ID')):
@@ -26,21 +27,12 @@ def get_prefix(bot, message):
     else:
         return prefix
 
-client = commands.Bot(command_prefix=get_prefix, help_command=None)
-
-# Load Extension
-@client.command()
-async def load(ctx, extension):
-  client.load_extension(f'cogs{extension}')
-
-# Unload Extension
-@client.command()
-async def unload(ctx, extension):
-  client.unload_extension(f'cogs{extension}')
+client = commands.Bot(command_prefix=get_prefix, help_command=None, intents=intents)
 
 # Loading all cogs
 print(bcolors.HEADER + "Logging in || Bot running version " + version + bcolors.ENDC)
 
+tree = client.tree
 
 # Function to remove prefix from string
 def remove_prefix(text, prefix):
@@ -56,26 +48,10 @@ async def on_ready():
 
     for filename in os.listdir('./cogs'):
       if filename.endswith('.py'):
-        client.load_extension(f'cogs.{filename[:-3]}')
+        await client.load_extension(f'cogs.{filename[:-3]}')
         print(bcolors.OKBLUE + filename + " found" + bcolors.ENDC)
 
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd | v' + version))
-
-
-@client.event # Triggers when a message is sent in the chat
-async def on_message(message): 
-    # So the bot doesn't react to its own messages.
-  if message.author == client.user:
-    return
-  
-  if "thanks bot" == message.content.lower() or "thank you bot" == message.content.lower():
-      user = message.author.id
-      await message.channel.send("No worries, <@%s>" % user)
-  
-  if ("bad bot") == message.content.lower():
-    await message.add_reaction('😢')
-    await message.channel.send(":(")
-  
-  await client.process_commands(message)
+    await tree.sync()
 
 client.run(token)
