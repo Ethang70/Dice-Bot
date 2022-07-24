@@ -14,7 +14,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-version = "1.0a"
+version = "1.0"
 token = config('TOKEN')
 prefix = config('PREFIX')
 botColour = config("COLOUR")
@@ -53,5 +53,5 @@ async def on_ready():
 
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd | v' + version))
     await tree.sync()
-    
+
 client.run(token)
