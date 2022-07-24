@@ -1,7 +1,10 @@
 import requests
 import json
+import discord
+
 from decouple import config
 from discord.ext import commands
+from discord import app_commands # Used for slash commands
 
 
 class league(commands.Cog):
@@ -42,21 +45,19 @@ class league(commands.Cog):
       return(json_data)
 
   ### Function that obtains and prints summoner id using summoner name ### 
-  @commands.command()
-  async def sid(self, ctx, arg): 
-      name = arg
-      if name == "?":
-        await ctx.send('Usage: ' + config("PREFIX") + 'sid [Enter summoner name to get summoner ID]')
-        return
+  @app_commands.command(name = "sid", description = "Grab summoner ID of LoL player [OCE]")
+  @app_commands.describe(player_name = "In game name")
+  async def summoner__id(self, interaction: discord.Interaction, player_name: str): 
+      name = player_name
       id = self.get_summoner_id(name)
       if id == 404:
-        await ctx.send('Summoner not found')
+        await interaction.response.send_message('Summoner not found')
       elif id == 401:
-        await ctx.send('Unauthorised Access (Check API Key)')
+        await interaction.response.send_message('Unauthorised Access (Check API Key)')
       elif id == 1:
-        await ctx.channel.send('Enter in a name')
+        await interaction.response.send_message('Enter in a name')
       else:
-        await ctx.channel.send('Summoner id is: ' + str(id))
+        await interaction.response.send_message('Summoner id is: ' + str(id))
   
 async def setup(client):
     await client.add_cog(league(client))

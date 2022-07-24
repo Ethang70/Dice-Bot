@@ -97,62 +97,63 @@ class general(commands.Cog):
     return randomFactOrCap
 
   ### Command for questions ###
-  @commands.command()
-  async def question(self, ctx, *arg):
-      question = False
-      quesHelp = False
+  @app_commands.command(name = "question", description = "Ask the bot a question and recieve and answer")
+  @app_commands.describe(question = "The question you want to ask (Must be a yes/no question")
+  async def question(self, interaction: discord.Interaction, question: str):
+      question_b = False
 
-      # Check for a question mark and whether its alone or help is requested
-      for args in arg:
-        if "?" in args:
-          question = True
-        if args == "?" and len(arg) == 1 or args == "help" and len(arg) == 1:
-          quesHelp = True
+      embed = discord.Embed(title = question, color = int(config('COLOUR'), 16))
 
-      if quesHelp == True:
-        await ctx.message.channel.send("Usage: " + config('PREFIX') + "question [Enter your yes or no question for me to answer, don't forget the question mark]")
-        return
-      if question == False:
-        await ctx.message.channel.send("Hmm, either that isn't a question or you forgot a question mark. Try again.")
-        return
-      response = random.randint(1,10)
-      if response == 1:
-        await ctx.message.channel.send("Yes!")
-      elif response == 2:
-        await ctx.message.channel.send("There's a very good chance.")
-      elif response == 3:
-        await ctx.message.channel.send("Certainly not.")
-      elif response == 4:
-        await ctx.message.channel.send("Potentially.")
-      elif response == 5:
-        await ctx.message.channel.send("I don't know.")
-      elif response == 6:
-        await ctx.message.channel.send("Of course!")
-      elif response == 7:
-        await ctx.message.channel.send("Wow... Of course not! Why would you even ask that?")
-      elif response == 8:
-        await ctx.message.channel.send("There is a chance.")
-      elif response == 9:
-        await ctx.message.channel.send("It's almost certain.")
-      elif response == 10:
-        await ctx.message.channel.send("No!")
+      # Check for a question mark
+      if "?" in question:
+        question_b = True
+
+      if question_b == False:
+        embed.description = "Hmm, either that isn't a question or you forgot a question mark. Try again."
+      else:
+        response = random.randint(1,10)
+        if response == 1:
+          embed.description = "Yes!"
+        elif response == 2:
+          embed.description = "There's a very good chance."
+        elif response == 3:
+          embed.description = "Certainly not."
+        elif response == 4:
+          embed.description = "Potentially."
+        elif response == 5:
+          embed.description = "I don't know."
+        elif response == 6:
+          embed.description = "Of course!"
+        elif response == 7:
+          embed.description = "Wow... Of course not! Why would you even ask that?"
+        elif response == 8:
+          embed.description = "There is a chance."
+        elif response == 9:
+          embed.description = "It's almost certain."
+        elif response == 10:
+          embed.description = "No!"
+
+      await interaction.response.send_message(embed=embed)
   
 
   ### Allows admins of guild to delete messages ###
-  @commands.command()
-  async def clear(self,ctx, amount: int):
-    if not ctx.author.guild_permissions.administrator:
-      ctx.message.send("You have insufficent permissions.")
-      return
-    
-    amount = int(amount)
+  @app_commands.command(name = "clear", description = "Mass clear messages")
+  @app_commands.describe(amount = "The amount of messages to delete")
+  async def clear(self, interaction: discord.Interaction, amount: int):
+    ctx = await interaction.client.get_context(interaction)
+
+    embed = discord.Embed(title = "Clear", color = int(config('COLOUR'), 16))      
     
     if(amount < 1):
-      return ctx.message.send("Enter a positive number")
+      embed.description = "Enter a positive number"
+      return await interaction.response.send_message(embed = embed, ephemeral = True)
     if(amount > 1000):
-      return ctx.message.send("Enter a smaller number")
+      embed.description = "Enter a smaller number"
+      return await interaction.response.send_message(embed = embed, ephemeral = True)
 
     await ctx.channel.purge(limit=amount)
+    embed.description = str(amount) + " messages cleared"
+    await interaction.response.send_message(embed = embed, ephemeral = True)
 
 async def setup(client):
     await client.add_cog(general(client))

@@ -34,10 +34,6 @@ print(bcolors.HEADER + "Logging in || Bot running version " + version + bcolors.
 
 tree = client.tree
 
-# @tree.command(name = "test", description = "testing")
-# async def slashtest(interaction: discord.Interaction):
-#   await interaction.response.send_message(f"I am working!", ephemeral = True)
-
 # Function to remove prefix from string
 def remove_prefix(text, prefix):
     print('prefix removed')
@@ -57,21 +53,5 @@ async def on_ready():
 
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd | v' + version))
     await tree.sync()
-
-@client.event # Triggers when a message is sent in the chat
-async def on_message(message): 
-    # So the bot doesn't react to its own messages.
-  if message.author == client.user:
-    return
-  
-  if "thanks bot" == message.content.lower() or "thank you bot" == message.content.lower():
-      user = message.author.id
-      await message.channel.send("No worries, <@%s>" % user)
-  
-  if ("bad bot") == message.content.lower():
-    await message.add_reaction('😢')
-    await message.channel.send(":(")
-  
-  await client.process_commands(message)
-
+    
 client.run(token)

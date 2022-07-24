@@ -20,9 +20,8 @@ class games(commands.Cog):
   @app_commands.command(name = "gtn", description="Guess the random number game")
   @app_commands.describe(lowrange = "Lowest number in range", highrange = "Highes number in range")
   async def gtn(self, interaction: discord.Interaction, lowrange: int = None, highrange:int = None):
-    ctx = await interaction.client.get_context(interaction.message)
+    ctx = await interaction.client.get_context(interaction)
     # Usage of command
-    #usage = functions.discordEmbed("Usage: ", config('PREFIX') + "gtn (Lower Range) (Upper Range)", int(config('COLOUR'), 16))
     lowRange = lowrange
     highRange = highrange
     # Initial variable setup
@@ -30,25 +29,12 @@ class games(commands.Cog):
     guessCounter = 0
     oldAnswer = ""
 
-    # # If first argument is a string
-    # if isinstance(lowRange, str):
-    #   if lowRange == "?" or lowRange.lower() == "help":
-    #     await ctx.message.channel.send(embed=usage)
-    #     return 0
-    #   elif lowRange is not None and highRange is None:
-    #     await ctx.message.channel.send(embed=usage)
-    #     return 0
-
     if lowRange is None and highRange is None:
       noArgs = True
-    # elif lowRange is not None and highRange is not None:
-    #   try:
-    #     lowRange = int(lowRange)
-    #     highRange = int(highRange)
-    #   except ValueError:
-    #     embed = functions.discordEmbed("Arguments invalid", "Type " + config('PREFIX') + "gtn ? for usage.", int(config('COLOUR'), 16))
-    #     await ctx.message.channel.send(embed=embed)
-    #     return 0
+    elif lowRange is None:
+      lowRange = highRange - 100
+    elif highRange is None:
+      highRange = lowRange + 100
 
     if not noArgs and highRange < lowRange:
       embed = functions.discordEmbed("Invalid range", "The upper range is less than the lower range.  Type " + config('PREFIX') + "gtn ? for usage.", int(config('COLOUR'), 16))
@@ -124,24 +110,25 @@ class games(commands.Cog):
 
   ### Rock Paper Scissors ###
   ### Returns 1 on player win, 0 on bot win, 2 on draw and -1 on error
-  @commands.command()
-  async def rps(self, ctx, playerInput):
+  @app_commands.command(name = "rps", description = "Rock, paper, scissors game")
+  @app_commands.describe(rps_input = "Input rock (r), paper (p) or scissors (s)")
+  async def rps(self, interaction: discord.Interaction, rps_input: str):
 
     # Usage of command
     usage = functions.discordEmbed("Usage: ", config('PREFIX') + "rps [Rock, Paper or Scissors]", int(config('COLOUR'), 16))
     
     playerMove = -1
     
-    if str(playerInput).lower() == "rock" or str(playerInput).lower() == "r":
+    if rps_input.lower() == "rock" or rps_input.lower() == "r":
       playerMove = 0
-    elif str(playerInput).lower() == "paper" or str(playerInput).lower() == "p":
+    elif rps_input.lower() == "paper" or rps_input.lower() == "p":
       playerMove = 1
-    elif str(playerInput).lower() == "scissors" or str(playerInput).lower() == "s":
+    elif rps_input.lower() == "scissors" or rps_input.lower() == "s":
       playerMove = 2
     else:
       embed = discord.Embed(title="Rock Paper Scissors", description="Invalid move!", color=botColourInt)
       embed.set_footer(text="Please enter either Rock, Paper or Scissors.")
-      await ctx.message.channel.send(embed=embed)
+      await interaction.response.send_message(embed=embed)
       return -1
 
     botMove = random.randint(0, 2)
@@ -162,29 +149,29 @@ class games(commands.Cog):
       return embed
 
     if botMove == playerMove:
-      await ctx.message.channel.send(embed=moveEmbed(botMove))
+      await interaction.response.send_message(embed=moveEmbed(botMove))
       return 2
 
     if botMove == 0:
       if playerMove == 1:
-        await ctx.message.channel.send(embed=moveEmbed(botMove, True))
+        await interaction.response.send_message(embed=moveEmbed(botMove, True))
         return 1
       else:
-        await ctx.message.channel.send(embed=moveEmbed(botMove, False))
+        await interaction.response.send_message(embed=moveEmbed(botMove, False))
         return 0
     elif botMove == 1:
       if playerMove == 0:
-        await ctx.message.channel.send(embed=moveEmbed(botMove, False))
+        await interaction.response.send_message(embed=moveEmbed(botMove, False))
         return 0
       else:
-        await ctx.message.channel.send(embed=moveEmbed(botMove, True))
+        await interaction.response.send_message(embed=moveEmbed(botMove, True))
         return 1
     elif botMove == 2:
       if playerMove == 0:
-        await ctx.message.channel.send(embed=moveEmbed(botMove, True))
+        await interaction.response.send_message(embed=moveEmbed(botMove, True))
         return 1
       else:
-        await ctx.message.channel.send(embed=moveEmbed(botMove, False))
+        await interaction.response.send_message(embed=moveEmbed(botMove, False))
         return 0
     
     return -1

@@ -1,4 +1,4 @@
-import wavelink
+import wavelink # The library used for lavalink
 import asyncio # For asyncio.sleep()
 import mysql.connector # To connect to music db
 import datetime # Used to convert time from S to HH:MM:SS
@@ -9,7 +9,7 @@ import random # Used for shuffle selection song index
 
 from discord import app_commands # Used for slash commands
 from decouple import config # For .env vars
-from discord.ext import commands
+from discord.ext import commands # To use command tree structure
 
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16) # Colour to be used on embeds
@@ -135,10 +135,15 @@ class Music(commands.Cog):
                 if loop > 2:
                     loop = 0
 
+                self.mydb = await Music.db_connector(self)
+                self.db = self.mydb.cursor()
+
                 sql = "UPDATE " + config('MYSQLTB') + " SET loop_b = %s WHERE guild_id = %s"
                 val = (loop, interaction.guild_id) 
                 self.db.execute(sql, val)
                 self.mydb.commit()
+                self.db.close()
+                self.mydb.close()
 
             await Music.update_embed(self, vc)
 
@@ -165,11 +170,16 @@ class Music(commands.Cog):
                     shuffle = 1
                 else:
                     shuffle = 0
+
+                self.mydb = await Music.db_connector(self)
+                self.db = self.mydb.cursor()
                     
                 sql = "UPDATE " + config('MYSQLTB') + " SET shuffle_b = %s WHERE guild_id = %s"
                 val = (shuffle, interaction.guild_id) 
                 self.db.execute(sql, val)
                 self.mydb.commit()
+                self.db.close()
+                self.mydb.close()
             
             await Music.update_embed(self, vc)
 
@@ -235,14 +245,20 @@ class Music(commands.Cog):
             seconds= seconds*60 + int(part, 10)
         return seconds
 
-    # Connects to the database and returns inforamtion based on guild_id
-    async def connect_db(self, guild_id : int):
-        self.mydb = mysql.connector.connect(
+    # Connect to database
+    async def db_connector(self):
+        mydb = mysql.connector.connect(
           host = config("MYSQLIP"),
           user = config("MYSQLUSER"),
           password = config("MYSQLPASS"),
           database = config("MYSQLDB")
         )
+
+        return mydb
+
+    # Connects to the database and returns inforamtion based on guild_id
+    async def connect_db(self, guild_id : int):
+        self.mydb = await Music.db_connector(self)
         self.db = self.mydb.cursor()
 
         sql = "SELECT * FROM " + config('MYSQLTB') + " WHERE guild_id = %s"
@@ -250,6 +266,9 @@ class Music(commands.Cog):
         self.db.execute(sql, val)
 
         result = self.db.fetchall()
+
+        self.db.close()
+        self.mydb.close()
 
         return result
 
@@ -702,10 +721,20 @@ class Music(commands.Cog):
             channel_id = message.channel.id
             msg_id = message.id
             
-            sql = "INSERT INTO " + self.table + " (guild_id, channel_id, message_id) VALUES (%s, %s, %s)"
+            mydb = mysql.connector.connect(
+                host = config("MYSQLIP"),
+                user = config("MYSQLUSER"),
+                password = config("MYSQLPASS"),
+                database = config("MYSQLDB")
+                )
+            db = mydb.cursor()
+
+            sql = "INSERT INTO " + self.table + " (guild_id, channel_id, message_id, loop_b, shuffle_b) VALUES (%s, %s, %s, 0, 0)"
             val = (guild_id, channel_id, msg_id) 
-            self.db.execute(sql, val)
-            self.mydb.commit()
+            db.execute(sql, val)
+            mydb.commit()
+            db.close()
+            mydb.close()
             embed = functions.discordEmbed('Setup' , 'Channel now setup', botColourInt)
             await interaction.response.send_message(embed=embed, ephemeral = True)
 
@@ -740,6 +769,12 @@ class Music(commands.Cog):
                 val = (guild_id,)
                 db.execute(sql, val)
                 mydb.commit()
+                db.close()
+                mydb.close()
+            
+            embed = functions.discordEmbed('Terminate' , 'Music channel removed', botColourInt)
+            await interaction.response.send_message(embed=embed, ephemeral = True)
+
         else:
             embed = functions.discordEmbed('Terminate' , 'There is no channel setup, please use /setup', botColourInt)
             await interaction.response.send_message(embed=embed, ephemeral = True)
