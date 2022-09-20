@@ -559,7 +559,7 @@ class Music(commands.Cog):
             vc.queue.clear()
             await Music.reset_embed(self, vc)
             await vc.disconnect()
-            embed = functions.discordEmbed(title = 'Disconnected', colour = botColourInt)
+            embed = functions.discordEmbed(title = 'Disconnected', description = 'Bot disconnected', colour = botColourInt)
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
             await interaction.delete_original_message()
