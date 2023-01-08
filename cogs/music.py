@@ -207,7 +207,7 @@ class Music(commands.Cog):
             embed = functions.discordEmbed("Failed Check", "Im not connected", botColourInt)
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
             return False
         elif not (
             (interaction.client.user.id in ctx.author.voice.channel.voice_states) and
@@ -216,19 +216,19 @@ class Music(commands.Cog):
             embed = functions.discordEmbed("Failed Check", 'You\'re not in my voice channel', botColourInt)
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
             return False
         elif not ctx.author.voice:
             embed = functions.discordEmbed("Failed Check", 'You\'re not in a voice channel', botColourInt)
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
             return False
         elif interaction.channel_id != channel_id:
             embed = functions.discordEmbed("Failed Check", 'Please use this command in the music channel', botColourInt)
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
             return False
         return True
         
@@ -501,12 +501,12 @@ class Music(commands.Cog):
             if current > len(vc.queue)-1 or current < 0:
                 await interaction.response.send_message('Current index out of bounds')
                 await asyncio.sleep(1)
-                return await interaction.delete_original_message()
+                return await interaction.delete_original_response()
         
             if new > len(vc.queue)-1 or new < 0:
                 await interaction.response.send_message('New index out of bounds')
                 await asyncio.sleep(1)
-                return await interaction.delete_original_message()
+                return await interaction.delete_original_response()
 
             song = vc.queue._queue[current]
             
@@ -526,7 +526,7 @@ class Music(commands.Cog):
         embed = functions.discordEmbed('Move', 'Moved ' + song.title + ' from ' + str(current+1) + ' to ' + str(new+1), botColourInt)
         await interaction.response.send_message(embed=embed)
         await asyncio.sleep(4)
-        await interaction.delete_original_message()
+        await interaction.delete_original_response()
 
     # Removes a song from queue given its queue index
     @app_commands.command(name = "rm", description = "Remove song from queue")
@@ -546,7 +546,7 @@ class Music(commands.Cog):
             await interaction.response.send_message(embed=embed)
             await self.update_embed(vc)
             await asyncio.sleep(0.7)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
 
     # Disconnects the bot from the voice channel and clears player queue
     @app_commands.command(name = "dc", description = "Disconnect bot from voice")
@@ -562,7 +562,7 @@ class Music(commands.Cog):
             embed = functions.discordEmbed(title = 'Disconnected', description = 'Bot disconnected', colour = botColourInt)
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
 
     # Outputs the queue in pages of 10 songs each, page number needs to be inputted
     @app_commands.command(name = "q", description = "Shows music queue")
@@ -580,7 +580,7 @@ class Music(commands.Cog):
             embed = functions.discordEmbed("Queue", 'No songs in queue | Why not queue something?', int(config('COLOUR'), 16))
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
             return
         
         qDesc = ''
@@ -592,7 +592,7 @@ class Music(commands.Cog):
             embed = functions.discordEmbed("Queue", 'Invalid page: Max page is ' + str(pages), int(config('COLOUR'), 16))
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
             return
 
         start = (page - 1) * items_per_page
@@ -613,7 +613,7 @@ class Music(commands.Cog):
         embed.set_footer(text=f'Viewing Page {page}/{pages}')
         await interaction.response.send_message(embed=embed)
         await asyncio.sleep(7)
-        await interaction.delete_original_message()
+        await interaction.delete_original_response()
 
     # Sends a message containing the current runtime of the song
     @app_commands.command(name = "np", description = "Shows information about whats currently playing")
@@ -631,7 +631,7 @@ class Music(commands.Cog):
             embed = discord.Embed(color= int(config('COLOUR'), 16), title='Now Playing', description=song)
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(5)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
 
     # Seeks out and jumps to a point in a song based on time given
     @app_commands.command(name = "seek", description = "Jump to a time in the song")
@@ -652,7 +652,7 @@ class Music(commands.Cog):
             
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
 
     # Adds a volume filter to the player, up to volume increase of 500%
     @app_commands.command(name = "vol", description = "Change volume of the player")
@@ -675,7 +675,7 @@ class Music(commands.Cog):
 
             await interaction.response.send_message(embed=embed)
             await asyncio.sleep(1)
-            await interaction.delete_original_message()
+            await interaction.delete_original_response()
 
     # Only really to be used in the even the embed is stuck/not updated
     @app_commands.command(name = "update", description = "Updates the music embed if stuck")
