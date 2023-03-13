@@ -593,10 +593,8 @@ class Music(commands.Cog):
                 for track in stracks:
                     #Track name
                     track_name = track["name"]
-                    print(track_name)
                     #Name
                     artist_name = track["artists"][0]["name"]
-                    #Album
                     
                     query = str(str(track_name) + " " + str(artist_name) + " " + str(album))
 
@@ -804,22 +802,19 @@ class Music(commands.Cog):
             await interaction.response.send_message(embed=embed, delete_after = (1))
 
     # Adds a volume filter to the player, up to volume increase of 500%
-    @app_commands.command(name = "vol", description = "Change volume of the player")
-    @app_commands.describe(vol = "Volume in percent (Goes up to 500%) (No need for %)")
+    @app_commands.command(name = "volume", description = "Change volume of the player")
+    @app_commands.describe(vol = "Volume in percent (Goes up to 1000%) (No need for %)")
     async def volume(self, interaction: discord.Interaction, vol: int):
         ctx = await interaction.client.get_context(interaction)
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
             vc: wavelink.Player = ctx.voice_client
-            
-            true_volume = vol/100
 
-            if true_volume > 5 or true_volume < 0:
-                embed = functions.discordEmbed('Volume' , 'Invalid volume size, please try between 0-500', botColourInt)
+            if vol > 1000 or vol < 0:
+                embed = functions.discordEmbed('Volume' , 'Invalid volume size, please try between 0-1000', botColourInt)
             else:
-                filter = wavelink.Filter(volume = true_volume)
-                await vc.set_filter(filter)
+                await vc.set_volume(vol)
                 embed = functions.discordEmbed('Volume' , f'🔈 | Set to {vol}%', botColourInt)
 
             await interaction.response.send_message(embed=embed, delete_after = (1))
@@ -935,7 +930,7 @@ class Music(commands.Cog):
             with open("gif.txt", "a+") as f:
                 f.write("\n" + link)
 
-            embed = functions.discordEmbed('Add gif' , 'A dded successfully', botColourInt)
+            embed = functions.discordEmbed('Add gif' , 'Added successfully', botColourInt)
         else:
             embed = functions.discordEmbed('Add gif' , 'Link invalid, make sure it ends with gif and is secure', botColourInt)
         
