@@ -37,7 +37,7 @@ class general(commands.Cog):
         if int(noRoll) == 1:
           roll = random.randint(1, int(noFace))
           embed = functions.discordEmbed("You rolled a " + str(roll), None, int(config('COLOUR'), 16))
-          await interaction.edit_original_message(embed=embed)
+          await interaction.edit_original_response(embed=embed)
         else:
           dieArr = [] # Define an empty array to store the rolls in
           for i in range(int(noRoll)):
@@ -49,7 +49,7 @@ class general(commands.Cog):
             if len(allDieRolls) > 4000:
               if edited is False:
                 embed = functions.discordEmbed("Performed " + noRoll + " rolls with a " + noFace + "-sided die.", allDieRolls, int(config('COLOUR'), 16))
-                await interaction.edit_original_message(embed=embed)
+                await interaction.edit_original_response(embed=embed)
                 allDieRolls = "" # Clear the message
                 edited = True
               else:

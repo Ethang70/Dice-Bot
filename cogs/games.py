@@ -89,12 +89,12 @@ class games(commands.Cog):
         answer = await self.client.wait_for('message', timeout=30.0, check=check)
       except asyncio.TimeoutError:
         embed = functions.discordEmbed("You took too long to respond...", "Game over! The number was " + str(theNumber) + ".", int(config('COLOUR'), 16))
-        await interaction.edit_original_message(embed=embed)
+        await interaction.edit_original_response(embed=embed)
         return 0
       else:
         guessCounter+=1
         embededGuess = checkGuess(self, ctx, answer.content)
-        await interaction.edit_original_message(embed=embededGuess)
+        await interaction.edit_original_response(embed=embededGuess)
         if oldAnswer != "":
           oldMessage = await ctx.channel.fetch_message(oldAnswer.id)
           await oldMessage.delete()

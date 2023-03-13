@@ -64,12 +64,11 @@ class Music(commands.Cog):
             super().__init__(style=style, label=label)
 
         async def callback(self, interaction: discord.Interaction):
-            await interaction.response.defer()
             ctx = await interaction.client.get_context(interaction.message)
-
             check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
             if check:
+                await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
 
                 if vc.is_paused():
@@ -84,12 +83,12 @@ class Music(commands.Cog):
             super().__init__(style=discord.ButtonStyle.danger, label="⬜")
 
         async def callback(self, interaction: discord.Interaction):
-            await interaction.response.defer()
             ctx = await interaction.client.get_context(interaction.message)
 
             check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
             if check:
+                await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
                 vc.queue.clear()
                 await Music.reset_embed(self, vc)
@@ -101,12 +100,12 @@ class Music(commands.Cog):
             super().__init__(style=discord.ButtonStyle.danger, label="▶▶|")
             
         async def callback(self, interaction: discord.Interaction):
-            await interaction.response.defer()
             ctx = await interaction.client.get_context(interaction.message)
 
             check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
             if check:
+                await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
                 end = vc.track.duration
                 await vc.seek(end*1000)
@@ -117,11 +116,11 @@ class Music(commands.Cog):
             super().__init__(style=style, label="⟳")
 
         async def callback(self, interaction: discord.Interaction):
-            await interaction.response.defer()
             ctx = await interaction.client.get_context(interaction.message)
             check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
             if check:
+                await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
 
                 result = await Music.connect_db(self, interaction.guild_id)
@@ -145,7 +144,7 @@ class Music(commands.Cog):
                 self.db.close()
                 self.mydb.close()
 
-            await Music.update_embed(self, vc)
+                await Music.update_embed(self, vc)
 
 
     class ShuffleButton(discord.ui.Button['shuffle']):
@@ -153,11 +152,11 @@ class Music(commands.Cog):
             super().__init__(style=style, label="↹")
 
         async def callback(self, interaction: discord.Interaction):
-            await interaction.response.defer()
             ctx = await interaction.client.get_context(interaction.message)
             check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
             if check:
+                await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
 
                 result = await Music.connect_db(self, interaction.guild_id)
@@ -181,7 +180,7 @@ class Music(commands.Cog):
                 self.db.close()
                 self.mydb.close()
             
-            await Music.update_embed(self, vc)
+                await Music.update_embed(self, vc)
 
     #### GENERAL FUNCTIONS ####
 
@@ -195,42 +194,53 @@ class Music(commands.Cog):
                                             password=config("LLPASS"))
             
     # Checks thats conditions are right for interactions
-    async def check_cond(self, ctx, interaction, player):
-        result = await Music.connect_db(self, interaction.guild_id)
+    async def check_cond(self, ctx, interaction, player, author = None):
+        if interaction is not None:
+            result = await Music.connect_db(self, interaction.guild_id)
+        else:
+            result = await Music.connect_db(self, ctx.guild.id)
 
         if len(result) > 0:
           for x in result:
             channel_id = x[2]
             message_id = x[3]
 
-        if not ctx.voice_client or not player.is_connected():
+        if (not ctx.voice_client or not player.is_connected()) and interaction is not None:
             embed = functions.discordEmbed("Failed Check", "Im not connected", botColourInt)
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
+            await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (5))
             return False
-        elif not (
+        
+        if interaction is not None:
+            if not (
             (interaction.client.user.id in ctx.author.voice.channel.voice_states) and
             (interaction.user.id in ctx.author.voice.channel.voice_states)
-        ):
-            embed = functions.discordEmbed("Failed Check", 'You\'re not in my voice channel', botColourInt)
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
-            return False
-        elif not ctx.author.voice:
-            embed = functions.discordEmbed("Failed Check", 'You\'re not in a voice channel', botColourInt)
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
-            return False
-        elif interaction.channel_id != channel_id:
-            embed = functions.discordEmbed("Failed Check", 'Please use this command in the music channel', botColourInt)
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
-            return False
-        return True
+            ):
+                embed = functions.discordEmbed("Failed Check", 'You\'re not in my voice channel', botColourInt)
+                await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (5))
+                return False
+            elif not ctx.author.voice:
+                embed = functions.discordEmbed("Failed Check", 'You\'re not in a voice channel', botColourInt)
+                await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (5))
+                return False
+            elif interaction.channel_id != channel_id:
+                embed = functions.discordEmbed("Failed Check", 'Please use this command in the music channel', botColourInt)
+                await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (5))
+                return False
+            return True
+        else:
+            if (ctx.author.voice is None):
+                embed = functions.discordEmbed("Failed Check", 'You\'re not in a voice channel', botColourInt)
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(2)
+                await msg.delete()
+                return False
+            elif (not (self.bot.user.id in ctx.author.voice.channel.voice_states)) and (player is not None):
+                embed = functions.discordEmbed("Failed Check", 'You\'re not in my voice channel', botColourInt)
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(2)
+                await msg.delete()
+                return False
+            return True
         
     # Deletes message
     async def del_msg(self, message):
@@ -448,7 +458,7 @@ class Music(commands.Cog):
                     asyncio.get_event_loop().create_task(self.del_msg(message))
                     ctx.command = bot.get_command('play')
                     await self.cog_before_invoke(ctx)
-                    await ctx.invoke(bot.get_command('play'), query=message.content)
+                    await ctx.invoke(bot.get_command('play'), query=message.content, author=message.author)
                 else:
                     await self.del_msg(message)
 
@@ -457,19 +467,31 @@ class Music(commands.Cog):
 
     # Play a song given a query, joins a voicechannel if not already in one
     @commands.command()
-    async def play(self, ctx: commands.Context, *, query: str):
+    async def play(self, ctx: commands.Context, *, query: str, author):
+        check = await Music.check_cond(self, ctx, None, ctx.voice_client, author)
+        if not check:
+            return
+
+        if '&list' in query:
+            query = query.split("&")[1]
+            query = "https://www.youtube.com/playlist?" + query
+
         if query.startswith("https://www.youtube.com/playlist?"):
             tracks = await wavelink.YouTubePlaylist.search(query=query)
             tracks = tracks.tracks
         else:
-            track = await wavelink.YouTubeTrack.search(query=query, return_first=True)
-            tracks = [track]
+            try:
+                track = await wavelink.YouTubeTrack.search(query=query, return_first=True)
+                tracks = [track]
+            except:
+                tracks = None
 
         if tracks is None:
-            embed = functions.discordEmbed("Player", "Error: Nothing found", botColourInt)
-            msg = await ctx.send.message(embed=embed)
-            await asynio.sleep(2)
+            embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
+            msg = await ctx.send(embed=embed)
+            await asyncio.sleep(2)
             await msg.delete()
+            return
 
         if not ctx.voice_client:
             vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
@@ -499,14 +521,10 @@ class Music(commands.Cog):
             new = move_number - 1
 
             if current > len(vc.queue)-1 or current < 0:
-                await interaction.response.send_message('Current index out of bounds')
-                await asyncio.sleep(1)
-                return await interaction.delete_original_response()
+                await interaction.response.send_message(content = 'Current index out of bounds', ephemeral = True, delete_after = (2))
         
             if new > len(vc.queue)-1 or new < 0:
-                await interaction.response.send_message('New index out of bounds')
-                await asyncio.sleep(1)
-                return await interaction.delete_original_response()
+                await interaction.response.send_message(content = 'New index out of bounds', ephemeral = True, delete_after = (2))
 
             song = vc.queue._queue[current]
             
@@ -524,9 +542,7 @@ class Music(commands.Cog):
         vc.queue.put_at_index(new, song)
         await self.update_embed(vc)
         embed = functions.discordEmbed('Move', 'Moved ' + song.title + ' from ' + str(current+1) + ' to ' + str(new+1), botColourInt)
-        await interaction.response.send_message(embed=embed)
-        await asyncio.sleep(4)
-        await interaction.delete_original_response()
+        await interaction.response.send_message(embed=embed, delete_after = (4))
 
     # Removes a song from queue given its queue index
     @app_commands.command(name = "rm", description = "Remove song from queue")
@@ -543,10 +559,8 @@ class Music(commands.Cog):
             del vc.queue._queue[song_number-1]
 
             embed = functions.discordEmbed('Remove', "Song removed: " + song.title, botColourInt)
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed, delete_after = (1))
             await self.update_embed(vc)
-            await asyncio.sleep(0.7)
-            await interaction.delete_original_response()
 
     # Disconnects the bot from the voice channel and clears player queue
     @app_commands.command(name = "dc", description = "Disconnect bot from voice")
@@ -560,9 +574,7 @@ class Music(commands.Cog):
             await Music.reset_embed(self, vc)
             await vc.disconnect()
             embed = functions.discordEmbed(title = 'Disconnected', description = 'Bot disconnected', colour = botColourInt)
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
+            await interaction.response.send_message(embed=embed, delete_after = (1))
 
     # Outputs the queue in pages of 10 songs each, page number needs to be inputted
     @app_commands.command(name = "q", description = "Shows music queue")
@@ -578,9 +590,7 @@ class Music(commands.Cog):
 
         if len(queue) == 0:
             embed = functions.discordEmbed("Queue", 'No songs in queue | Why not queue something?', int(config('COLOUR'), 16))
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
+            await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (1))
             return
         
         qDesc = ''
@@ -590,9 +600,7 @@ class Music(commands.Cog):
 
         if page > pages:
             embed = functions.discordEmbed("Queue", 'Invalid page: Max page is ' + str(pages), int(config('COLOUR'), 16))
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
+            await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (1))
             return
 
         start = (page - 1) * items_per_page
@@ -611,9 +619,7 @@ class Music(commands.Cog):
         
         embed = functions.discordEmbed("Queue", qDesc, int(config('COLOUR'), 16))
         embed.set_footer(text=f'Viewing Page {page}/{pages}')
-        await interaction.response.send_message(embed=embed)
-        await asyncio.sleep(7)
-        await interaction.delete_original_response()
+        await interaction.response.send_message(embed=embed, delete_after = (7))
 
     # Sends a message containing the current runtime of the song
     @app_commands.command(name = "np", description = "Shows information about whats currently playing")
@@ -629,9 +635,7 @@ class Music(commands.Cog):
 
             song = f'**[{current_song.title}]({current_song.uri})**\n({pos}/{dur})'
             embed = discord.Embed(color= int(config('COLOUR'), 16), title='Now Playing', description=song)
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(5)
-            await interaction.delete_original_response()
+            await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (5))
 
     # Seeks out and jumps to a point in a song based on time given
     @app_commands.command(name = "seek", description = "Jump to a time in the song")
@@ -650,9 +654,7 @@ class Music(commands.Cog):
                 embed = functions.discordEmbed('Seek', 'Moved track to ' + time, botColourInt)
                 await vc.seek(time_msec)
             
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
+            await interaction.response.send_message(embed=embed, delete_after = (1))
 
     # Adds a volume filter to the player, up to volume increase of 500%
     @app_commands.command(name = "vol", description = "Change volume of the player")
@@ -673,9 +675,7 @@ class Music(commands.Cog):
                 await vc.set_filter(filter)
                 embed = functions.discordEmbed('Volume' , f'🔈 | Set to {vol}%', botColourInt)
 
-            await interaction.response.send_message(embed=embed)
-            await asyncio.sleep(1)
-            await interaction.delete_original_response()
+            await interaction.response.send_message(embed=embed, delete_after = (1))
 
     # Only really to be used in the even the embed is stuck/not updated
     @app_commands.command(name = "update", description = "Updates the music embed if stuck")
