@@ -38,11 +38,11 @@ class Music(commands.Cog):
         
             if playing:
                 if self.paused:
-                    self.add_item(Music.PauseButton("▶", discord.ButtonStyle.green))
+                    self.add_item(Music.PauseButton("<:play:1084708670664880158>", discord.ButtonStyle.green))
                 else:
-                    self.add_item(Music.PauseButton("||", discord.ButtonStyle.danger))
+                    self.add_item(Music.PauseButton("<:pause:1084703479114780724>", discord.ButtonStyle.danger))
             else:
-                self.add_item(Music.PauseButton("▶", discord.ButtonStyle.danger))
+                self.add_item(Music.PauseButton("<:play:1084708670664880158>", discord.ButtonStyle.danger))
             
             self.add_item(Music.StopButton())
             self.add_item(Music.SkipButton())
@@ -60,8 +60,8 @@ class Music(commands.Cog):
                 self.add_item(Music.ShuffleButton(discord.ButtonStyle.green))
 
     class PauseButton(discord.ui.Button['pause']):
-        def __init__(self, label : str, style):
-            super().__init__(style=style, label=label)
+        def __init__(self, emoji : str, style):
+            super().__init__(style=style, emoji=emoji)
 
         async def callback(self, interaction: discord.Interaction):
             ctx = await interaction.client.get_context(interaction.message)
@@ -80,7 +80,7 @@ class Music(commands.Cog):
 
     class StopButton(discord.ui.Button['stop']):
         def __init__(self):
-            super().__init__(style=discord.ButtonStyle.danger, label="⬜")
+            super().__init__(style=discord.ButtonStyle.danger, emoji="<:stop:1084708262169034792>")
 
         async def callback(self, interaction: discord.Interaction):
             ctx = await interaction.client.get_context(interaction.message)
@@ -97,7 +97,7 @@ class Music(commands.Cog):
 
     class SkipButton(discord.ui.Button['skip']):
         def __init__(self):
-            super().__init__(style=discord.ButtonStyle.danger, label="▶▶|")
+            super().__init__(style=discord.ButtonStyle.danger, emoji="<:skip:1084707456975908908>")
             
         async def callback(self, interaction: discord.Interaction):
             ctx = await interaction.client.get_context(interaction.message)
@@ -113,7 +113,7 @@ class Music(commands.Cog):
     
     class LoopButton(discord.ui.Button['loop']):
         def __init__(self, style):
-            super().__init__(style=style, label="⟳")
+            super().__init__(style=style, emoji="<:loopeat:1084703648724033546>")
 
         async def callback(self, interaction: discord.Interaction):
             ctx = await interaction.client.get_context(interaction.message)
@@ -149,7 +149,7 @@ class Music(commands.Cog):
 
     class ShuffleButton(discord.ui.Button['shuffle']):
         def __init__(self, style):
-            super().__init__(style=style, label="↹")
+            super().__init__(style=style, emoji="<:shuffle:1084703804995403806>")
 
         async def callback(self, interaction: discord.Interaction):
             ctx = await interaction.client.get_context(interaction.message)
