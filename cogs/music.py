@@ -6,10 +6,13 @@ import discord # Use discord components and embeds
 import math # Used for create queue pages
 import functions # Used for embed function
 import random # Used for shuffle selection song index
+import spotipy
 
 from discord import app_commands # Used for slash commands
 from decouple import config # For .env vars
 from discord.ext import commands # To use command tree structure
+from spotipy.oauth2 import SpotifyClientCredentials
+from wavelink.ext import spotify
 
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16) # Colour to be used on embeds
@@ -351,14 +354,22 @@ class Music(commands.Cog):
                 qDesc =''
                 if queue.count > 8:
                     for i in range(0,7):
-                        song = queue._queue[i]
-                        qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                        try: 
+                            song = queue._queue[i]
+                            qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                        except:
+                            song = queue._queue[i]
+                            qDesc += f'[{str(i + 1) + ". " + song.title}]' + '\n'
                     offset = queue.count - 7
                     qDesc += "and " + str(offset) + " more track(s)\n"
                 else:
                     for i in range(0,queue.count):
-                        song = queue._queue[i]
-                        qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                        try:
+                            song = queue._queue[i]
+                            qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                        except:
+                            song = queue._queue[i]
+                            qDesc += f'[{str(i + 1) + ". " + song.title}]' + '\n'
             
             if player.is_paused():
                 status = "Paused"
@@ -519,7 +530,7 @@ class Music(commands.Cog):
             except:
                 tracks = None
 
-        if tracks is None:
+        if tracks is None and not ("spotify" in query):
             embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
             msg = await ctx.send(embed=embed)
             await asyncio.sleep(2)
@@ -531,11 +542,114 @@ class Music(commands.Cog):
         else:
             vc: wavelink.Player = ctx.voice_client
 
-        for track in tracks:
-            if vc.is_playing():
-                vc.queue.put(track)
-            else:
-                await vc.play(track)
+        if "spotify" in query:
+            client_credentials_manager = SpotifyClientCredentials(client_id=config("SPOT_CLI"), client_secret=config("SPOT_SEC"))
+            sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+            if ("playlist" in query):
+                playlist_URI = query.split("/")[-1].split("?")[0]
+                results = sp.playlist_tracks(playlist_URI)
+                stracks = results['items']
+                while results['next']:
+                    results = sp.next(results)
+                    stracks.extend(results['items'])
+                tracks = []
+                for track in stracks:
+                    #Track name
+                    track_name = track["track"]["name"]
+                    #Name
+                    artist_name = track["track"]["artists"][0]["name"]
+                    #Album
+                    album = track["track"]["album"]["name"]
+
+                    query = str(str(track_name) + " " + str(artist_name) + " " + str(album))
+
+                    try:
+                        track = await wavelink.YouTubeMusicTrack.search(query=query , return_first = True)
+                        if vc.is_playing():
+                            vc.queue.put(track)
+                        else:
+                            await vc.play(track)
+                    except:
+                        try:
+                            track = await wavelink.YouTubeTrack.search(query = str(track_name) + " " + str(artist_name) + " " + str(album), return_first = True)
+                            if vc.is_playing():
+                                vc.queue.put(track)
+                            else:
+                                await vc.play(track)
+                        except:
+                            print("Couldn't find")
+                            continue
+            elif("album" in query):
+                album_URI = query.split("/")[-1].split("?")[0]
+                results = sp.album_tracks(album_URI)
+                stracks = results['items']
+                while results['next']:
+                    results = sp.next(results)
+                    stracks.extend(results['items'])
+                
+                album = sp.album(album_URI)['name']
+                tracks = []
+                
+                for track in stracks:
+                    #Track name
+                    track_name = track["name"]
+                    print(track_name)
+                    #Name
+                    artist_name = track["artists"][0]["name"]
+                    #Album
+                    
+                    query = str(str(track_name) + " " + str(artist_name) + " " + str(album))
+
+                    try:
+                        track = await wavelink.YouTubeMusicTrack.search(query=query , return_first = True)
+                        if vc.is_playing():
+                            vc.queue.put(track)
+                        else:
+                            await vc.play(track)
+                    except:
+                        try:
+                            track = await wavelink.YouTubeTrack.search(query = str(track_name) + " " + str(artist_name) + " " + str(album), return_first = True)
+                            if vc.is_playing():
+                                vc.queue.put(track)
+                            else:
+                                await vc.play(track)
+                        except:
+                            print("Couldn't find")
+                            continue
+            elif("track" in query):
+                song_URI = query.split("/")[-1].split("?")[0]
+                track = sp.track(song_URI)
+
+                #Track name
+                track_name = track["name"]
+                print(track_name)
+                #Name
+                artist_name = track["artists"][0]["name"]
+                print(artist_name)
+                #Album
+                query = str(str(track_name) + " " + str(artist_name))
+                try:
+                        track = await wavelink.YouTubeMusicTrack.search(query=query , return_first = True)
+                        if vc.is_playing():
+                            vc.queue.put(track)
+                        else:
+                            await vc.play(track)
+                except:
+                    try:
+                        track = await wavelink.YouTubeTrack.search(query = str(track_name) + " " + str(artist_name) + " " + str(album), return_first = True)
+                        if vc.is_playing():
+                            vc.queue.put(track)
+                        else:
+                            await vc.play(track)
+                    except:
+                        print("Couldn't find")
+
+        else:
+            for track in tracks:
+                if vc.is_playing():
+                    vc.queue.put(track)
+                else:
+                    await vc.play(track)
         await self.update_embed(vc)
 
     # Moves a song position in the queue to one specified
@@ -826,6 +940,55 @@ class Music(commands.Cog):
             embed = functions.discordEmbed('Add gif' , 'Link invalid, make sure it ends with gif and is secure', botColourInt)
         
         await interaction.response.send_message(embed=embed, ephemeral = True)
+
+    # Changes the equaliser settings
+    @app_commands.command(name = 'eq', description = 'Change the settings of the equaliser.')
+    @app_commands.describe(profile = 'Choose a preset EQ Profile.')
+    async def eq(self, interaction: discord.Interaction, profile: str):
+        ctx = await interaction.client.get_context(interaction)
+        check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
+        EQ_FLAT = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (11, 0), (12, 0), (13, 0), (14, 0)]
+        EQ_BASS_BOOSTED = [(0, 0.8), (1, 0.4275), (2, 0.365), (3, 0.3025), (4, 0.24), (5, 0.1775), (6, 0.115), (7, 0.0525), (8, 0), (9, 0), (10, 0), (11, 0), (12, 0), (13, 0), (14, 0)]
+        EQ_MAX_BASS_BOOSTED = [(0, 1.0), (1, 1.0), (2, 1.0), (3, 1.0), (4, 1.0), (5, 1.0), (6, 1.0), (7, 1.0), (8, 0), (9, 0), (10, 0), (11, 0), (12, 0), (13, 0), (14, 0)]
+        EQ_ROCK = [(0, 0.45), (1, 0.425), (2, 0.375), (3, 0.325), (4, 0.275), (5, 0.225), (6, 0.175), (7, -0.05), (8, 0.05), (9, 0.1), (10, 0.15), (11, 0.2), (12, 0.25), (13, 0.3), (14, 0.35)]
+        EQ_POP = [(0, -0.05), (1, -0.03), (2, -0.025), (3, 0), (4, 0.15), (5, 0.2), (6, 0.32), (7, 0.31), (8, 0.29), (9, 0.23), (10, 0.15), (11, 0.01), (12, -0.025), (13, -0.03), (14, -0.05)]
+        EQ_IN_THE_CLUB_TOILETS = [(0, 0.3), (1, 0.25), (2, 0.15), (3, 0.1), (4, -0.25), (5, -0.25), (6, -0.25), (7, -0.25), (8, -0.25), (9, -0.25), (10, -0.25), (11, -0.25), (12, -0.25), (13, -0.25), (14, -0.25)]
+        EQ_CLASSICAL = [(0, 0.1), (1, 0.1), (2, 0.05), (3, 0), (4, 0.05), (5, 0.12), (6, 0.14), (7, 0.15), (8, 0.05), (9, 0.14), (10, 0.19), (11, 0.23), (12, 0.15), (13, 0.165), (14, 0.19)]
+        EQ_EDM = [(0, 0.45), (1, 0.4), (2, 0.37), (3, 0.15), (4, 0.12), (5, 0), (6, -0.13), (7, -0.06), (8, 0.12), (9, 0.06), (10, 0.02), (11, 0.07), (12, 0.2), (13, 0.35), (14, 0.45)]
+
+        if check:
+            if profile.lower() == 'bass boosted':
+                eq = wavelink.Equalizer(bands=EQ_BASS_BOOSTED)
+                embed = functions.discordEmbed('EQ', 'EQ was set to Bass Boosted.', botColourInt)
+            elif profile.lower() == 'max bass boosted':
+                eq = wavelink.Equalizer(bands=EQ_MAX_BASS_BOOSTED)
+                embed = functions.discordEmbed('EQ', 'EQ was set to Max Bass Boosted.', botColourInt)
+            elif profile.lower() == 'rock':
+                eq = wavelink.Equalizer(bands=EQ_ROCK)
+                embed = functions.discordEmbed('EQ', 'EQ was set to Rock.', botColourInt)
+            elif profile.lower() == 'pop':
+                eq = wavelink.Equalizer(bands=EQ_POP)
+                embed = functions.discordEmbed('EQ', 'EQ was set to Pop.', botColourInt)
+            elif profile.lower() == 'in the club toilets':
+                eq = wavelink.Equalizer(bands=EQ_IN_THE_CLUB_TOILETS)
+                embed = functions.discordEmbed('EQ', 'EQ was set to In The Club Toilets.', botColourInt)
+            elif profile.lower() == 'classical':
+                eq = wavelink.Equalizer(bands=EQ_POP)
+                embed = functions.discordEmbed('EQ', 'EQ was set to Classical.', botColourInt)
+            elif profile.lower() == 'edm':
+                eq = wavelink.Equalizer(bands=EQ_EDM)
+                embed = functions.discordEmbed('EQ', 'EQ was set to EDM.', botColourInt)
+            else:
+                # Default Flat EQ
+                eq = wavelink.Equalizer(bands=EQ_FLAT)
+                embed = functions.discordEmbed('EQ', 'EQ was set to flat.', botColourInt)
+
+            # Create filter and set the filter to the player
+            eqFilter = wavelink.Filter(equalizer=eq)
+            vc: wavelink.Player = ctx.voice_client
+            await vc.set_filter(eqFilter)
+
+            await interaction.response.send_message(embed=embed, delete_after = (1))
 
 
 async def setup(bot):
