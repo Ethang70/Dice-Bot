@@ -814,6 +814,20 @@ class Music(commands.Cog):
             embed = functions.discordEmbed('Terminate' , 'There is no channel setup, please use /setup', botColourInt)
             await interaction.response.send_message(embed=embed, ephemeral = True)
 
+    @app_commands.command(name = "add_gif", description = "Add gif to music playback embed")
+    @app_commands.describe(link = "Link to the gif")
+    async def add_gif(self, interaction: discord.Interaction, link: str):
+        if link.endswith(".gif") and link.startswith("https://"):
+            with open("gif.txt", "a+") as f:
+                f.write("\n" + link)
+
+            embed = functions.discordEmbed('Add gif' , 'A dded successfully', botColourInt)
+        else:
+            embed = functions.discordEmbed('Add gif' , 'Link invalid, make sure it ends with gif and is secure', botColourInt)
+        
+        await interaction.response.send_message(embed=embed, ephemeral = True)
+
+
 async def setup(bot):
     await bot.add_cog(Music(bot))
     
