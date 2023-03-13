@@ -23,8 +23,12 @@ class Music(commands.Cog):
         self.channel_id = 0
         self.message_id = 0
         self.table = config('MYSQLTB')
+        
 
         bot.loop.create_task(self.connect_nodes())
+
+    gifdex = 0
+    gif = []
 
     #### CLASSES FOR BUTTONS ####
 
@@ -297,12 +301,13 @@ class Music(commands.Cog):
             message_id = x[3]
 
         channel = player.client.get_channel(channel_id)
+        await channel.edit(topic = "Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
         message = await channel.fetch_message(message_id)
         embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
         embed.add_field(name="Queue: ", value="Empty")
-        embed.add_field(name="Status: ", value="Idle")
         embed.set_image(url=config("BKG_IMG"))
-        embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
+        embed.set_thumbnail(url="https://bosshunting.com.au/wp-content/uploads/2020/03/tumblr_nirbz9e90g1tcuj64o1_400.gif")
+        embed.set_footer(text="Status: Idle")
         await message.edit(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view(True, playing = False))
 
     # Updates the music embed to reflect whats in the player
@@ -356,10 +361,10 @@ class Music(commands.Cog):
                         qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
             
             if player.is_paused():
-                status = "Paused\n"
+                status = "Paused"
                 paused = True
             else:
-                status = "Playing\n"
+                status = "Playing"
                 paused = False
 
             if loop == 2:
@@ -372,8 +377,11 @@ class Music(commands.Cog):
             
             embed.set_image(url=thumbnail)
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
-            embed.add_field(name="Status: ", value=status)
-            embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
+            try:
+                embed.set_thumbnail(url=self.gif[self.gifdex])
+            except:
+                embed.set_thumbnail(url=Music.gif[Music.gifdex])
+            embed.set_footer(text="Status: " + status)
             await message.edit(embed=embed, view=Music.music_button_view(paused, loop, shuffle))
 
     # Will play next track in queue or dc if no tracks left
@@ -394,6 +402,12 @@ class Music(commands.Cog):
     # Triggers when a track starts playing
     @commands.Cog.listener()
     async def on_wavelink_track_start(self, player: wavelink.Player, track: wavelink.Track):
+        with open('gif.txt') as f:
+            Music.gif = f.read().splitlines()
+
+        max = len(Music.gif)
+        Music.gifdex = random.randrange(0,max-1)
+
         await self.update_embed(player)
 
     # Triggers when a track ends 
@@ -472,13 +486,32 @@ class Music(commands.Cog):
         if not check:
             return
 
+        video = None
+
         if '&list' in query:
-            query = query.split("&")[1]
+            query = query.split("&")
+            video = query[0]
+            query = query[1]
             query = "https://www.youtube.com/playlist?" + query
 
         if query.startswith("https://www.youtube.com/playlist?"):
-            tracks = await wavelink.YouTubePlaylist.search(query=query)
-            tracks = tracks.tracks
+            try:
+                tracks = await wavelink.YouTubePlaylist.search(query=query)
+                tracks = tracks.tracks
+                
+                if video is not None:
+                    video = await wavelink.YouTubeTrack.search(query=video, return_first=True)
+                    true = tracks.copy()
+                    for track in true:
+                        if track.thumb == video.thumb:
+                            break
+                        tracks.remove(track)
+            except:
+                embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(2)
+                await msg.delete()
+                return
         else:
             try:
                 track = await wavelink.YouTubeTrack.search(query=query, return_first=True)
@@ -709,13 +742,15 @@ class Music(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral = True)
         else:
             channel = await ctx.guild.create_text_channel("music")
+            await channel.edit(topic = "Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
             guild_id = interaction.guild_id
 
             embed = discord.Embed(title = "No song currently playing ", color = int(config('COLOUR'), 16))
             embed.add_field(name="Queue: ", value="Empty")
-            embed.add_field(name="Status: ", value="Idle")
-            embed.set_image(url=config("BKG_IMG"))
-            embed.set_footer(text="Other commands: /mv, /rm, /dc, /q, /np, /seek, /vol")
+            embed.set_image(url=config("BKG_IMG")) 
+            embed.set_thumbnail(url="https://bosshunting.com.au/wp-content/uploads/2020/03/tumblr_nirbz9e90g1tcuj64o1_400.gif")
+            embed.set_footer(text="Status: Idle")
+
             message = await channel.send(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view())
 
             channel_id = message.channel.id
