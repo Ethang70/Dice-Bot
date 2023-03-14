@@ -612,6 +612,10 @@ class Music(commands.Cog):
             if query.startswith("https://www.youtube.com/playlist?") or '&list' in query:
                 await self.search_and_queue(player=vc, ctx=ctx, query=query, pl=True)
             else:
+                if '&t' in query:
+                    query = query.split("&")
+                    query = query[0]
+
                 await self.search_and_queue(player=vc, ctx=ctx, query=query)
         
         if vc.is_playing():
