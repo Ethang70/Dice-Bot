@@ -12,6 +12,7 @@ from discord import app_commands # Used for slash commands
 from decouple import config # For .env vars
 from discord.ext import commands # To use command tree structure
 from spotipy.oauth2 import SpotifyClientCredentials # Used for logging into spotify
+from sclib.asyncio import SoundcloudAPI, Track, Playlist
 
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16) # Colour to be used on embeds
@@ -396,10 +397,6 @@ class Music(commands.Cog):
 
     # Will play next track in queue or dc if no tracks left
     async def next(self, player):
-        loop = False
-        if loop:
-            return await player.play(track)
-
         if player.queue.is_empty:
             await player.guild.voice_client.disconnect(force=True)
             await Music.reset_embed(self, player)
@@ -410,7 +407,7 @@ class Music(commands.Cog):
     # A function to search for a track and to queue it onto the player
     # plus a boolean if the search should try YouTubeMusic first
     async def search_and_queue(self, player: wavelink.Player, ctx: commands.Context, 
-                               query: str, ytm: bool = False, pl: bool = False):
+                               query: str, ytm: bool = False, sc: bool = False, pl: bool = False):
         try:    
             if ytm:
                 track = await wavelink.YouTubeMusicTrack.search(query = query, return_first=True)
@@ -433,6 +430,9 @@ class Music(commands.Cog):
                         if track.thumb == video.thumb:
                             break
                         tracks.remove(track)
+            elif sc:
+                track = await wavelink.SoundCloudTrack.search(query=query, return_first=True)
+                tracks = [track]
             else:
                 track = await wavelink.YouTubeTrack.search(query = query, return_first=True)
                 tracks = [track]
@@ -606,7 +606,20 @@ class Music(commands.Cog):
 
                 if len(tracks) > 1:
                     await msg.delete()
-        
+        # Deal1ing with soundcloud links            
+        elif "soundcloud.com" in query:
+            api = SoundcloudAPI()
+            if '/sets/' in query:
+                playlist = await api.resolve(query)
+                assert type(playlist) is Playlist
+
+                for track in playlist.tracks:
+                    await self.search_and_queue(player=vc, ctx=ctx, query=track.title, sc=True)
+            else:
+                track = await api.resolve(query)
+                assert type(track) is Track
+
+                await self.search_and_queue(player=vc, ctx=ctx, query=track.title, sc=True)
         # Dealing with normal YouTube tracks
         else:
             if query.startswith("https://www.youtube.com/playlist?") or '&list' in query:
