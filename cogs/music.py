@@ -12,7 +12,7 @@ from discord import app_commands # Used for slash commands
 from decouple import config # For .env vars
 from discord.ext import commands # To use command tree structure
 from spotipy.oauth2 import SpotifyClientCredentials # Used for logging into spotify
-from sclib.asyncio import SoundcloudAPI, Track, Playlist
+from sclib.asyncio import SoundcloudAPI, Track, Playlist # Used for soundcloud
 
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16) # Colour to be used on embeds
@@ -440,9 +440,10 @@ class Music(commands.Cog):
             if not ytm and not pl:
                 embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
                 msg = await ctx.send(embed=embed)
-                await self.next(player)
                 await asyncio.sleep(2)
                 await msg.delete()
+                if not player.is_playing():
+                    await self.next(player)
             return
 
         for track in tracks:    
