@@ -356,20 +356,20 @@ class Music(commands.Cog):
                     for i in range(0,7):
                         try: 
                             song = queue._queue[i]
-                            qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
                         except:
                             song = queue._queue[i]
-                            qDesc += f'[{str(i + 1) + ". " + song.title}]' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
                     offset = queue.count - 7
                     qDesc += "and " + str(offset) + " more track(s)\n"
                 else:
                     for i in range(0,queue.count):
                         try:
                             song = queue._queue[i]
-                            qDesc += f'[{str(i + 1) + ". " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
                         except:
                             song = queue._queue[i]
-                            qDesc += f'[{str(i + 1) + ". " + song.title}]' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
             
             if player.is_paused():
                 status = "Paused"
