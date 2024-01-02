@@ -744,7 +744,7 @@ class Music(commands.Cog):
 
         for i in range(start,end):
             song = queue._queue[i]
-            qDesc += f'[{str(i + 1) + ". " + song.title}]({song.uri})' + '\n'
+            qDesc += f'[{str(i + 1) + " - " + song.title}]({song.uri})' + '\n'
             
         
         embed = functions.discordEmbed("Queue", qDesc, int(config('COLOUR'), 16))
