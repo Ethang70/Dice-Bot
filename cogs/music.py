@@ -652,9 +652,11 @@ class Music(commands.Cog):
 
             if current > len(vc.queue)-1 or current < 0:
                 await interaction.response.send_message(content = 'Current index out of bounds', ephemeral = True, delete_after = (2))
+                return  
         
             if new > len(vc.queue)-1 or new < 0:
                 await interaction.response.send_message(content = 'New index out of bounds', ephemeral = True, delete_after = (2))
+                return
 
             song = vc.queue._queue[current]
             
@@ -663,7 +665,7 @@ class Music(commands.Cog):
 
             for i in range(len(queue)-1, new):
                 if i == len(queue) -1:
-                    queue.put(queue._queue[i])
+                    continue
                 else:
                     queue._queue[i+1] = queue._queue[i]
         else:
