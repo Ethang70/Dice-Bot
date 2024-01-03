@@ -31,7 +31,7 @@ class openai(commands.Cog):
                 ],
             )
         except:
-            embed.add_field(name="An error occured", inline=True)
+            embed.add_field(name="An error occured", value="Sorry", inline=True)
             await interaction.followup.send(embed=embed)
             return
 
@@ -128,7 +128,7 @@ class openai(commands.Cog):
                     await ctx.message.channel.send(embed=embed)
 
         except:
-            embed.add_field(name="An error occured", inline=True)
+            embed.add_field(name="An error occured", value="Sorry", inline=True)
             await interaction.followup.send(embed=embed)
             return
 
