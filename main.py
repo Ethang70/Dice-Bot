@@ -51,7 +51,7 @@ async def on_ready():
         await client.load_extension(f'cogs.{filename[:-3]}')
         print(bcolors.OKBLUE + filename + " found" + bcolors.ENDC)
 
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you '+ config('PREFIX') +'rtd | v' + version))
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name='you /rtd | v' + version))
     await tree.sync()
 
 client.run(token)
