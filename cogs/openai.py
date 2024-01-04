@@ -76,8 +76,8 @@ class openai(commands.Cog):
         await interaction.response.defer()
         embed = discord.Embed(title=prompt, color = int(config('COLOUR'), 16))
 
-        try:
-            if model.name == "DALL-E 2":
+        if model.name == "DALL-E 2":
+            try:
                 response = await self.Oai.images.generate(
                     model=model.value,
                     prompt=prompt,
@@ -88,7 +88,12 @@ class openai(commands.Cog):
                 embed.set_image(url=response.data[0].url)
                 embed.set_footer(text=model.name)
                 await interaction.followup.send(embed=embed)
-            else:
+            except:
+                embed.add_field(name="An error occured", value="Sorry", inline=True)
+                await interaction.followup.send(embed=embed)
+                return
+        else:
+            try:
                 completion = await self.Oai.chat.completions.create(
                     model=model.value,
                     messages=
@@ -99,38 +104,36 @@ class openai(commands.Cog):
                         },
                     ],
                 )
-        
-
-            # The following splits up the embeds so the full message can be sent #
-            response = ""
-            edited = False
-            for i in range(len(completion.choices[0].message.content)):
-                response += completion.choices[0].message.content[i]
-                if len(response) > 1023:
-                    if edited is False:
-                        embed.add_field(name="Response: ", value=response, inline=True)
-                        await interaction.followup.send(embed=embed)
-                        response = ""
-                        edited = True
-                    else:
-                        embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
-                        await ctx.message.channel.send(embed=embed)
-                        response = ""
             
-            # Once loop is completed send what ever is left in the buffer
-            if edited is False:
-                    embed.add_field(name="Response: ", value=response, inline=True)
-                    embed.set_footer(text=model.name)
-                    await interaction.followup.send(embed=embed)
-            else:
-                    embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
-                    embed.set_footer(text=model.name)
-                    await ctx.message.channel.send(embed=embed)
-
-        except:
-            embed.add_field(name="An error occured", value="Sorry", inline=True)
-            await interaction.followup.send(embed=embed)
-            return
+                # The following splits up the embeds so the full message can be sent #
+                response = ""
+                edited = False
+                for i in range(len(completion.choices[0].message.content)):
+                    response += completion.choices[0].message.content[i]
+                    if len(response) > 1023:
+                        if edited is False:
+                            embed.add_field(name="Response: ", value=response, inline=True)
+                            await interaction.followup.send(embed=embed)
+                            response = ""
+                            edited = True
+                        else:
+                            embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
+                            await ctx.message.channel.send(embed=embed)
+                            response = ""
+                
+                # Once loop is completed send what ever is left in the buffer
+                if edited is False:
+                        embed.add_field(name="Response: ", value=response, inline=True)
+                        embed.set_footer(text=model.name)
+                        await interaction.followup.send(embed=embed)
+                else:
+                        embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
+                        embed.set_footer(text=model.name)
+                        await ctx.message.channel.send(embed=embed)
+            except:
+                embed.add_field(name="An error occured", value="Sorry", inline=True)
+                await interaction.followup.send(embed=embed)
+                return
 
 async def setup(client):
     await client.add_cog(openai(client))
