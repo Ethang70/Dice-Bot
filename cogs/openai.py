@@ -17,7 +17,13 @@ class openai(commands.Cog):
     async def chatgpt(self, interaction: discord.Interaction, prompt: str):
         ctx = await interaction.client.get_context(interaction)
         await interaction.response.defer()
-        embed = discord.Embed(title=prompt, color = int(config('COLOUR'), 16))
+
+        if len(prompt) > 255:
+            title = prompt[0:252] + "..."
+        else:
+            title = prompt
+            
+        embed = discord.Embed(title=title, color = int(config('COLOUR'), 16))
 
         try:
             completion = await self.Oai.chat.completions.create(
@@ -38,22 +44,23 @@ class openai(commands.Cog):
         # The following splits up the embeds so the full message can be sent #
         response = ""
         edited = False
-        for i in range(len(completion.choices[0].message.content)):
-            response += completion.choices[0].message.content[i]
-            if len(response) > 1023:
-                if edited is False:
-                    embed.add_field(name="Response: ", value=response, inline=True)
-                    await interaction.followup.send(embed=embed)
-                    response = ""
-                    edited = True
-                else:
-                    embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
-                    await ctx.message.channel.send(embed=embed)
-                    response = ""
+        if len(completion.choices[0].message.content) > 4095:
+            for i in range(len(completion.choices[0].message.content)):
+                response += completion.choices[0].message.content[i]
+                if len(response) > 4095:
+                    if edited is False:
+                        embed.description = response
+                        await interaction.followup.send(embed=embed)
+                        response = ""
+                        edited = True
+                    else:
+                        embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
+                        await ctx.message.channel.send(embed=embed)
+                        response = ""
         
         # Once loop is completed send what ever is left in the buffer
         if edited is False:
-                embed.add_field(name="Response: ", value=response, inline=True)
+                embed.description = completion.choices[0].message.content
                 embed.set_footer(text="GPT 3.5 Turbo")
                 await interaction.followup.send(embed=embed)
         else:
@@ -74,7 +81,13 @@ class openai(commands.Cog):
     async def openai(self, interaction: discord.Interaction, prompt: str, model: app_commands.Choice[str]):
         ctx = await interaction.client.get_context(interaction)
         await interaction.response.defer()
-        embed = discord.Embed(title=prompt, color = int(config('COLOUR'), 16))
+        
+        if len(prompt) > 255:
+            title = prompt[0:252] + "..."
+        else:
+            title = prompt
+
+        embed = discord.Embed(title=title, color = int(config('COLOUR'), 16))
 
         if model.name == "DALL-E 2":
             try:
@@ -108,22 +121,23 @@ class openai(commands.Cog):
                 # The following splits up the embeds so the full message can be sent #
                 response = ""
                 edited = False
-                for i in range(len(completion.choices[0].message.content)):
-                    response += completion.choices[0].message.content[i]
-                    if len(response) > 1023:
-                        if edited is False:
-                            embed.add_field(name="Response: ", value=response, inline=True)
-                            await interaction.followup.send(embed=embed)
-                            response = ""
-                            edited = True
-                        else:
-                            embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
-                            await ctx.message.channel.send(embed=embed)
-                            response = ""
+                if len(completion.choices[0].message.content) > 4095:
+                    for i in range(len(completion.choices[0].message.content)):
+                        response += completion.choices[0].message.content[i]
+                        if len(response) > 4095:
+                            if edited is False:
+                                embed.description = response
+                                await interaction.followup.send(embed=embed)
+                                response = ""
+                                edited = True
+                            else:
+                                embed = functions.discordEmbed(None, response, int(config('COLOUR'), 16))
+                                await ctx.message.channel.send(embed=embed)
+                                response = ""
                 
                 # Once loop is completed send what ever is left in the buffer
                 if edited is False:
-                        embed.add_field(name="Response: ", value=response, inline=True)
+                        embed.description = completion.choices[0].message.content
                         embed.set_footer(text=model.name)
                         await interaction.followup.send(embed=embed)
                 else:
