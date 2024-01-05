@@ -926,7 +926,17 @@ class Music(commands.Cog):
     # Changes the equaliser settings
     @app_commands.command(name = 'eq', description = 'Change the settings of the equaliser.')
     @app_commands.describe(profile = 'Choose a preset EQ Profile.')
-    async def eq(self, interaction: discord.Interaction, profile: str):
+    @app_commands.choices(profile = [
+        app_commands.Choice(name = "Reset", value = ""),
+        app_commands.Choice(name = "Bass Boost", value = "bass boosted"),
+        app_commands.Choice(name = "MAX Bass Boost", value = "max bass boosted"),
+        app_commands.Choice(name = "Rock", value = "rock"),
+        app_commands.Choice(name = "Pop", value = "pop"),
+        app_commands.Choice(name = "In the club toilets", value = "in the club toilets"),
+        app_commands.Choice(name = "Classical", value = "classical"),
+        app_commands.Choice(name = "EDM", value = "edm")
+    ])
+    async def eq(self, interaction: discord.Interaction, profile: app_commands.Choice[str]):
         ctx = await interaction.client.get_context(interaction)
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
         EQ_FLAT = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (11, 0), (12, 0), (13, 0), (14, 0)]
@@ -937,6 +947,8 @@ class Music(commands.Cog):
         EQ_IN_THE_CLUB_TOILETS = [(0, 0.3), (1, 0.25), (2, 0.15), (3, 0.1), (4, -0.25), (5, -0.25), (6, -0.25), (7, -0.25), (8, -0.25), (9, -0.25), (10, -0.25), (11, -0.25), (12, -0.25), (13, -0.25), (14, -0.25)]
         EQ_CLASSICAL = [(0, 0.1), (1, 0.1), (2, 0.05), (3, 0), (4, 0.05), (5, 0.12), (6, 0.14), (7, 0.15), (8, 0.05), (9, 0.14), (10, 0.19), (11, 0.23), (12, 0.15), (13, 0.165), (14, 0.19)]
         EQ_EDM = [(0, 0.45), (1, 0.4), (2, 0.37), (3, 0.15), (4, 0.12), (5, 0), (6, -0.13), (7, -0.06), (8, 0.12), (9, 0.06), (10, 0.02), (11, 0.07), (12, 0.2), (13, 0.35), (14, 0.45)]
+
+        profile = profile.value
 
         if check:
             if profile.lower() == 'bass boosted':
@@ -955,7 +967,7 @@ class Music(commands.Cog):
                 eq = wavelink.Equalizer(bands=EQ_IN_THE_CLUB_TOILETS)
                 embed = functions.discordEmbed('EQ', 'EQ was set to In The Club Toilets.', botColourInt)
             elif profile.lower() == 'classical':
-                eq = wavelink.Equalizer(bands=EQ_POP)
+                eq = wavelink.Equalizer(bands=EQ_CLASSICAL)
                 embed = functions.discordEmbed('EQ', 'EQ was set to Classical.', botColourInt)
             elif profile.lower() == 'edm':
                 eq = wavelink.Equalizer(bands=EQ_EDM)
