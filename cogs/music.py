@@ -328,6 +328,7 @@ class Music(commands.Cog):
             message_id = x[3]
             loop = x[4]
             shuffle = x[5]
+            eq = x[6]
 
         channels = await player.guild.fetch_channels()
 
@@ -379,12 +380,29 @@ class Music(commands.Cog):
                 paused = False
 
             if loop == 2:
-                status += " 🔂"
+                status += "  🔂"
             elif loop == 1:
-                status += " 🔁"
+                status += "  🔁"
 
             if shuffle == 1:
                 status += "  🔀"
+
+            if eq > 0:
+                if eq == 1:
+                    status += "  EQ: Bass boosted"
+                elif eq == 2:
+                    status += "  EQ: Max bass boosted"
+                elif eq == 3:
+                    status += "  EQ: Rock"
+                elif eq == 4:
+                    status += "  EQ: Pop"
+                elif eq == 5:
+                    status += "  EQ: In the club toilets"
+                elif eq == 6:
+                    status += "  EQ: Classical"
+                elif eq == 7:
+                    status += "  EQ: EDM"
+                    
             
             embed.set_image(url=thumbnail)
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
@@ -860,7 +878,7 @@ class Music(commands.Cog):
                 )
             db = mydb.cursor()
 
-            sql = "INSERT INTO " + self.table + " (guild_id, channel_id, message_id, loop_b, shuffle_b) VALUES (%s, %s, %s, 0, 0)"
+            sql = "INSERT INTO " + self.table + " (guild_id, channel_id, message_id, loop_b, shuffle_b) VALUES (%s, %s, %s, 0, 0, 0)"
             val = (guild_id, channel_id, msg_id) 
             db.execute(sql, val)
             mydb.commit()
@@ -954,34 +972,54 @@ class Music(commands.Cog):
             if profile.lower() == 'bass boosted':
                 eq = wavelink.Equalizer(bands=EQ_BASS_BOOSTED)
                 embed = functions.discordEmbed('EQ', 'EQ was set to Bass Boosted.', botColourInt)
+                eqn = 1
             elif profile.lower() == 'max bass boosted':
                 eq = wavelink.Equalizer(bands=EQ_MAX_BASS_BOOSTED)
                 embed = functions.discordEmbed('EQ', 'EQ was set to Max Bass Boosted.', botColourInt)
+                eqn = 2
             elif profile.lower() == 'rock':
                 eq = wavelink.Equalizer(bands=EQ_ROCK)
                 embed = functions.discordEmbed('EQ', 'EQ was set to Rock.', botColourInt)
+                eqn = 3
             elif profile.lower() == 'pop':
                 eq = wavelink.Equalizer(bands=EQ_POP)
                 embed = functions.discordEmbed('EQ', 'EQ was set to Pop.', botColourInt)
+                eqn = 4
             elif profile.lower() == 'in the club toilets':
                 eq = wavelink.Equalizer(bands=EQ_IN_THE_CLUB_TOILETS)
                 embed = functions.discordEmbed('EQ', 'EQ was set to In The Club Toilets.', botColourInt)
+                eqn = 5
             elif profile.lower() == 'classical':
                 eq = wavelink.Equalizer(bands=EQ_CLASSICAL)
                 embed = functions.discordEmbed('EQ', 'EQ was set to Classical.', botColourInt)
+                eqn = 6
             elif profile.lower() == 'edm':
                 eq = wavelink.Equalizer(bands=EQ_EDM)
                 embed = functions.discordEmbed('EQ', 'EQ was set to EDM.', botColourInt)
+                eqn = 7
             else:
                 # Default Flat EQ
                 eq = wavelink.Equalizer(bands=EQ_FLAT)
                 embed = functions.discordEmbed('EQ', 'EQ was set to flat.', botColourInt)
+                eqn = 0
 
             # Create filter and set the filter to the player
             eqFilter = wavelink.Filter(equalizer=eq)
             vc: wavelink.Player = ctx.voice_client
             await vc.set_filter(eqFilter)
 
+            self.mydb = await Music.db_connector(self)
+            self.db = self.mydb.cursor()
+                
+            sql = "UPDATE " + config('MYSQLTB') + " SET eq = %s WHERE guild_id = %s"
+            val = (eqn, interaction.guild_id) 
+            self.db.execute(sql, val)
+            self.mydb.commit()
+            self.db.close()
+            self.mydb.close()
+
+            vc: wavelink.Player = ctx.voice_client
+            await self.update_embed(vc)
             await interaction.response.send_message(embed=embed, delete_after = (1))
 
 
