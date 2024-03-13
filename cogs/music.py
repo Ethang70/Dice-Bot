@@ -98,8 +98,7 @@ class Music(commands.Cog):
                 await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
                 vc.queue.clear()
-                await Music.reset_embed(self, vc)
-                await vc.disconnect()
+                await vc.skip(force = True)
 
 
     class SkipButton(discord.ui.Button['skip']):
@@ -114,8 +113,6 @@ class Music(commands.Cog):
             if check:
                 await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
-                # end = vc.track.duration
-                # await vc.seek(end*1000)
                 await vc.skip(force = True)
 
     
@@ -138,29 +135,6 @@ class Music(commands.Cog):
                     vc.queue.mode = wavelink.QueueMode.loop
                 else:
                     vc.queue.mode = wavelink.QueueMode.normal
-
-
-
-                # result = await Music.connect_db(self, interaction.guild_id)
-
-                # if len(result) > 0:
-                #     for x in result:
-                #         loop = x[4]
-                
-                # loop = loop + 1
-
-                # if loop > 2:
-                #     loop = 0
-
-                # self.mydb = await Music.db_connector(self)
-                # self.db = self.mydb.cursor()
-
-                # sql = "UPDATE " + config('MYSQLTB') + " SET loop_b = %s WHERE guild_id = %s"
-                # val = (loop, interaction.guild_id) 
-                # self.db.execute(sql, val)
-                # self.mydb.commit()
-                # self.db.close()
-                # self.mydb.close()
 
                 await Music.update_embed(self, vc)
 
@@ -420,9 +394,9 @@ class Music(commands.Cog):
                 embed.set_thumbnail(url=Music.gif[Music.gifdex])
             
             try:
-                embed.set_footer(text=("Req: " + player.guild.get_member(currentSong.extras.requester).nick + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
+                embed.set_footer(text=(player.guild.get_member(currentSong.extras.requester).nick + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
             except:
-                embed.set_footer(text=("Req: " + player.guild.get_member(currentSong.extras.requester).name + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
+                embed.set_footer(text=(player.guild.get_member(currentSong.extras.requester).name + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
 
             await message.edit(embed=embed, view=Music.music_button_view(paused, loop, shuffle))
 
@@ -431,6 +405,16 @@ class Music(commands.Cog):
         if player.queue.is_empty:
             await player.guild.voice_client.disconnect(force=True)
             await Music.reset_embed(self, player)
+
+            self.mydb = await Music.db_connector(self)
+            self.db = self.mydb.cursor()
+                
+            sql = "UPDATE " + config('MYSQLTB') + " SET shuffle_b = 0, eq = 0 WHERE guild_id = %s"
+            val = [(player.guild.id)] 
+            self.db.execute(sql, val)
+            self.mydb.commit()
+            self.db.close()
+            self.mydb.close()
         else:
             next_song = player.queue.get()
             await player.play(next_song)
