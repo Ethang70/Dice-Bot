@@ -433,50 +433,26 @@ class Music(commands.Cog):
     # A function to search for a track and to queue it onto the player
     # plus a boolean if the search should try YouTubeMusic first
     async def search_and_queue(self, player: wavelink.Player, ctx: commands.Context, 
-                               query: str, ytm: bool = False, sc: bool = False, pl: bool = False, spo: bool = False):
-        try:
+                               query: str, link: bool = False):
+        # try:
+        if link:
             tracks: wavelink.Search = await wavelink.Playable.search(query)
-            if not tracks:
-                embed = functions.discordEmbed("Player", "Error: Could not find track :(", botColourInt)
-                msg = await ctx.send(embed=embed)
-                await asyncio.sleep(2)
-                await msg.delete()
-            # if ytm:
-            #     track = await wavelink.YouTubeMusicTrack.search(query = query, return_first=True)
-            #     tracks = [track]
-            # elif pl:
-            #     video = None
-            #     if '&list' in query:
-            #         query = query.split("&")
-            #         video = query[0]
-            #         query = query[1]
-            #         query = "https://www.youtube.com/playlist?" + query
+        else:
+            tracks: wavelink.Search = await wavelink.Playable.search(query, source='ytsearch')
 
-            #     tracks = await wavelink.YouTubePlaylist.search(query=query)
-            #     tracks = tracks.tracks
-                    
-            #     if video is not None:
-            #         video = await wavelink.YouTubeTrack.search(query=video, return_first=True)
-            #         tracks_copy = tracks.copy()
-            #         for track in tracks_copy:
-            #             if track.thumb == video.thumb:
-            #                 break
-            #             tracks.remove(track)
-            # elif sc:
-            #     track = await wavelink.SoundCloudTrack.search(query=query, return_first=True)
-            #     tracks = [track]
-            # else:
-            #     track = await wavelink.YouTubeTrack.search(query = query, return_first=True)
-            #     tracks = [track]
-        except:
-            if not ytm and not pl:
-                embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
-                msg = await ctx.send(embed=embed)
-                await asyncio.sleep(2)
-                await msg.delete()
-                if not player.playing:
-                    await self.next(player)
-            return
+        if not tracks:
+            embed = functions.discordEmbed("Player", "Error: Could not find track :(", botColourInt)
+            msg = await ctx.send(embed=embed)
+            await asyncio.sleep(2)
+            await msg.delete()
+        # except:
+        #     embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
+        #     msg = await ctx.send(embed=embed)
+        #     await asyncio.sleep(2)
+        #     await msg.delete()
+        #     if not player.playing:
+        #         await self.next(player)
+        #     return
 
         for track in tracks:    
             if player.playing:
@@ -572,94 +548,13 @@ class Music(commands.Cog):
         else:
             vc: wavelink.Player = ctx.voice_client
 
-        await self.search_and_queue(player=vc, ctx=ctx, query=query)
+        # Dealing with a link
+        if "https://" in query and ".com" in query:
+            await self.search_and_queue(player=vc, ctx=ctx, query=query, link=True)
+        # Otherwise default to YouTube Query         
+        else:
+            await self.search_and_queue(player=vc, ctx=ctx, query=query)
 
-        # # Dealing with spotify link
-        # if "open.spotify.com/" in query:
-        #     # # Log into Spotify
-        #     # client_credentials_manager = SpotifyClientCredentials(client_id=config("SPOT_CLI"), client_secret=config("SPOT_SEC"))
-        #     # sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
-
-        #     # # Grab URI
-        #     # URI = query.split("/")[-1].split("?")[0]
-
-        #     # # Dealing with playlist
-        #     # if "playlist" in query:
-        #     #     results = sp.playlist_tracks(URI)
-        #     #     tracks = results['items']
-
-        #     #     # Grab all entries in playlist
-        #     #     while results['next']:
-        #     #         results = sp.next(results)
-        #     #         tracks.extend(results['items'])
-
-        #     #     embed = functions.discordEmbed("Spotify Playlist", "Adding songs to queue, please wait", botColourInt)
-        #     #     embed.set_thumbnail(url="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZTkwMzc4NTViYzliOTdiMmY2NTcyMmE0OTE0N2ZmNTIyOTFiNmIwMCZjdD1z/cOfwtFobGCLJBU3DNn/giphy.gif")
-        #     #     msg = await ctx.send(embed=embed)
-
-        #     #     for track in tracks:
-        #     #         track_name = track["track"]["name"]
-        #     #         artist_name = track["track"]["artists"][0]["name"]
-        #     #         album = track["track"]["album"]["name"]
-
-        #     #         ytm_query = str(str(track_name) + " " + str(artist_name) + " " + str(album))
-        #     await self.search_and_queue(player=vc, ctx=ctx, query=query, spo=True)
-
-        #         # await msg.delete()
-        #     # else:
-        #     #     # Dealing with an Album
-        #     #     album = ""
-        #     #     if "album" in query:
-        #     #         results = sp.album_tracks(URI)
-        #     #         tracks = results['items']
-                    
-        #     #         while results['next']:
-        #     #             results = sp.next(results)
-        #     #             tracks.extend(results['items'])
-        #     #             album = sp.album(URI)['name']
-        #     #     # Dealing with an individual track
-        #     #     else:
-        #     #         track = sp.track(URI)
-        #     #         tracks = [track]
-
-        #     #     if len(tracks) > 1:
-        #     #         embed = functions.discordEmbed("Spotify Playlist", "Adding songs to queue, please wait", botColourInt)
-        #     #         embed.set_thumbnail(url="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZTkwMzc4NTViYzliOTdiMmY2NTcyMmE0OTE0N2ZmNTIyOTFiNmIwMCZjdD1z/cOfwtFobGCLJBU3DNn/giphy.gif")
-        #     #         msg = await ctx.send(embed=embed)
-
-        #     #     for track in tracks:
-        #     #         track_name = track["name"]
-        #     #         artist_name = track["artists"][0]["name"]
-        #     #         ytm_query = str(str(track_name) + " " + str(artist_name) + " " + str(album))
-        #     #         await self.search_and_queue(player=vc, ctx=ctx, query=ytm_query, ytm=True, pl=True)
-
-        #     #     if len(tracks) > 1:
-        #     #         await msg.delete()
-        # # Deal1ing with soundcloud links            
-        # elif "soundcloud.com" in query:
-        #     api = SoundcloudAPI()
-        #     if '/sets/' in query:
-        #         playlist = await api.resolve(query)
-        #         assert type(playlist) is Playlist
-
-        #         for track in playlist.tracks:
-        #             await self.search_and_queue(player=vc, ctx=ctx, query=track.title, sc=True)
-        #     else:
-        #         track = await api.resolve(query)
-        #         assert type(track) is Track
-
-        #         await self.search_and_queue(player=vc, ctx=ctx, query=track.title, sc=True)
-        # # Dealing with normal YouTube tracks
-        # else:
-        #     if query.startswith("https://www.youtube.com/playlist?") or '&list' in query:
-        #         await self.search_and_queue(player=vc, ctx=ctx, query=query, pl=True)
-        #     else:
-        #         if '&t' in query:
-        #             query = query.split("&")
-        #             query = query[0]
-
-        #         await self.search_and_queue(player=vc, ctx=ctx, query=query)
-        
         if vc.playing:
             await self.update_embed(vc)
 
