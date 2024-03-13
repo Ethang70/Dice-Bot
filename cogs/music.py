@@ -318,7 +318,7 @@ class Music(commands.Cog):
         embed.add_field(name="Queue: ", value="Empty")
         embed.set_image(url=config("BKG_IMG"))
         embed.set_thumbnail(url="https://bosshunting.com.au/wp-content/uploads/2020/03/tumblr_nirbz9e90g1tcuj64o1_400.gif")
-        embed.set_footer(text="Status: Idle")
+        embed.set_footer(text="Status: Idle", icon_url=player.node.client.user.avatar.url)
         await message.edit(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view(True, playing = False))
 
     # Updates the music embed to reflect whats in the player
@@ -413,11 +413,17 @@ class Music(commands.Cog):
             
             embed.set_image(url=thumbnail)
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
+
             try:
                 embed.set_thumbnail(url=self.gif[self.gifdex])
             except:
                 embed.set_thumbnail(url=Music.gif[Music.gifdex])
-            embed.set_footer(text="Status: " + status)
+            
+            try:
+                embed.set_footer(text=("Req: " + player.guild.get_member(currentSong.extras.requester).nick + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
+            except:
+                embed.set_footer(text=("Req: " + player.guild.get_member(currentSong.extras.requester).name + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
+
             await message.edit(embed=embed, view=Music.music_button_view(paused, loop, shuffle))
 
     # Will play next track in queue or dc if no tracks left
@@ -453,7 +459,8 @@ class Music(commands.Cog):
                 await self.next(player)
             return
 
-        for track in tracks:    
+        for track in tracks:
+            track.extras = {"requester": ctx.author.id}    
             if player.playing:
                 player.queue.put(track)
             else:
