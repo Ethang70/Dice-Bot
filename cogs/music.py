@@ -354,8 +354,8 @@ class Music(commands.Cog):
             currentSong = player.current
             identifier = currentSong.identifier
             queue = player.queue
-            embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=currentSong.length/1000)) + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
-            thumbnail = "https://i.ytimg.com/vi/" + identifier + "/hqdefault.jpg"
+            embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=int(currentSong.length/1000))).split('.')[0] + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
+            thumbnail = currentSong.artwork
 
             if queue.is_empty:
                 qDesc ='Empty'
@@ -365,7 +365,7 @@ class Music(commands.Cog):
                     for i in range(0,7):
                         try: 
                             song = queue.peek(i)
-                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length/1000)) + "]"}]({song.uri})' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split('.')[0] + "]"}]({song.uri})' + '\n'
                         except:
                             song = queue.peek(i)
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
@@ -375,7 +375,7 @@ class Music(commands.Cog):
                     for i in range(0,queue.count):
                         try:
                             song = queue.peek(i)
-                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length/1000)) + "]"}]({song.uri})' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split('.')[0] + "]"}]({song.uri})' + '\n'
                         except:
                             song = queue.peek(i)
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
