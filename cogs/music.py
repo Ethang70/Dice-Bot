@@ -179,7 +179,7 @@ class Music(commands.Cog):
     async def connect_nodes(self):
         """Connect to our Lavalink nodes."""
         await self.bot.wait_until_ready()
-        node: wavelink.Node = wavelink.Node(uri='http://localhost:2333', password=config("LLPASS"))
+        node: wavelink.Node = wavelink.Node(uri=config("LLIP"), password=config("LLPASS"))
         await wavelink.Pool.connect(client=self.bot, nodes=[node])
             
     # Checks thats conditions are right for interactions
