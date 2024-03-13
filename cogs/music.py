@@ -9,7 +9,7 @@ import random # Used for shuffle selection song index
 import spotipy # Used to get meta data for spotify songs/playlists/albums
 
 from discord import app_commands # Used for slash commands
-from decouple import config, AutoConfig # For .env vars
+from decouple import config # For .env vars
 from discord.ext import commands # To use command tree structure
 from spotipy.oauth2 import SpotifyClientCredentials # Used for logging into spotify
 from sclib.asyncio import SoundcloudAPI, Track, Playlist # Used for soundcloud
@@ -36,7 +36,7 @@ class Music(commands.Cog):
     #### CLASSES FOR BUTTONS ####
 
     class music_button_view(discord.ui.View):
-        def __init__(self, paused: bool = True, loop: int = 0, shuffle: int = 0, playing: bool = True):
+        def __init__(self, paused: bool = True, loop: wavelink.QueueMode = wavelink.QueueMode.normal, shuffle: int = 0, playing: bool = True):
             super().__init__(timeout = None)
             self.paused = paused
             self.loops = loop
@@ -54,9 +54,9 @@ class Music(commands.Cog):
             self.add_item(Music.StopButton())
             self.add_item(Music.SkipButton())
             
-            if self.loops == 0:
+            if self.loops == wavelink.QueueMode.normal:
                 self.add_item(Music.LoopButton(discord.ButtonStyle.danger))
-            elif self.loops == 1:
+            elif self.loops == wavelink.QueueMode.loop_all:
                 self.add_item(Music.LoopButton(discord.ButtonStyle.green))
             else:
                 self.add_item(Music.LoopButton(discord.ButtonStyle.blurple))
@@ -78,7 +78,7 @@ class Music(commands.Cog):
                 await interaction.response.defer()
                 vc: wavelink.Player = ctx.voice_client
 
-                if vc.paused():
+                if vc.paused:
                     await vc.pause(False)
                 else:
                     await vc.pause(True)
@@ -116,7 +116,7 @@ class Music(commands.Cog):
                 vc: wavelink.Player = ctx.voice_client
                 # end = vc.track.duration
                 # await vc.seek(end*1000)
-                await vc.skip(force = False)
+                await vc.skip(force = True)
 
     
     class LoopButton(discord.ui.Button['loop']):
@@ -132,12 +132,12 @@ class Music(commands.Cog):
                 vc: wavelink.Player = ctx.voice_client
                 LoopMode = vc.queue.mode
 
-                if LoopMode == "normal":
-                    vc.queue.mode = "loop_all"
-                elif LoopMode == "loop_all":
-                    vc.queue.mode = "loop"
+                if LoopMode == wavelink.QueueMode.normal:
+                    vc.queue.mode = wavelink.QueueMode.loop_all
+                elif LoopMode == wavelink.QueueMode.loop_all:
+                    vc.queue.mode = wavelink.QueueMode.loop
                 else:
-                    vc.queue.mode = "normal"
+                    vc.queue.mode = wavelink.QueueMode.normal
 
 
 
@@ -351,10 +351,10 @@ class Music(commands.Cog):
             await Music.reset_embed(self,player)
             return
         else:
-            currentSong = player.track
+            currentSong = player.current
             identifier = currentSong.identifier
             queue = player.queue
-            embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=currentSong.length)) + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
+            embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=currentSong.length/1000)) + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
             thumbnail = "https://i.ytimg.com/vi/" + identifier + "/hqdefault.jpg"
 
             if queue.is_empty:
@@ -364,32 +364,32 @@ class Music(commands.Cog):
                 if queue.count > 8:
                     for i in range(0,7):
                         try: 
-                            song = queue._queue[i]
-                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                            song = queue.peek(i)
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length/1000)) + "]"}]({song.uri})' + '\n'
                         except:
-                            song = queue._queue[i]
+                            song = queue.peek(i)
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
                     offset = queue.count - 7
                     qDesc += "and " + str(offset) + " more track(s)\n"
                 else:
                     for i in range(0,queue.count):
                         try:
-                            song = queue._queue[i]
-                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length)) + "]"}]({song.uri})' + '\n'
+                            song = queue.peek(i)
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=song.length/1000)) + "]"}]({song.uri})' + '\n'
                         except:
-                            song = queue._queue[i]
+                            song = queue.peek(i)
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
             
-            if player.paused():
+            if player.paused:
                 status = "Paused"
                 paused = True
             else:
                 status = "Playing"
                 paused = False
 
-            if loop == "loop":
+            if loop == wavelink.QueueMode.loop:
                 status += "  🔂"
-            elif loop == "loop_all":
+            elif loop == wavelink.QueueMode.loop_all:
                 status += "  🔁"
 
             if shuffle == 1:
@@ -434,31 +434,34 @@ class Music(commands.Cog):
     # plus a boolean if the search should try YouTubeMusic first
     async def search_and_queue(self, player: wavelink.Player, ctx: commands.Context, 
                                query: str, link: bool = False):
-        # try:
-        if link:
-            tracks: wavelink.Search = await wavelink.Playable.search(query)
-        else:
-            tracks: wavelink.Search = await wavelink.Playable.search(query, source='ytsearch')
+        try:
+            if link:
+                tracks: wavelink.Search = await wavelink.Playable.search(query)
+            else:
+                tracks: wavelink.Search = await wavelink.Playable.search(query, source='ytsearch') 
 
-        if not tracks:
-            embed = functions.discordEmbed("Player", "Error: Could not find track :(", botColourInt)
+            if not tracks:
+                embed = functions.discordEmbed("Player", "Error: Could not find track :(", botColourInt)
+                msg = await ctx.send(embed=embed)
+                await asyncio.sleep(2)
+                await msg.delete()
+        except:
+            embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
             msg = await ctx.send(embed=embed)
             await asyncio.sleep(2)
             await msg.delete()
-        # except:
-        #     embed = functions.discordEmbed("Player", "Error: Could not find track, try giving me the URL", botColourInt)
-        #     msg = await ctx.send(embed=embed)
-        #     await asyncio.sleep(2)
-        #     await msg.delete()
-        #     if not player.playing:
-        #         await self.next(player)
-        #     return
+            if not player.playing:
+                await self.next(player)
+            return
 
         for track in tracks:    
             if player.playing:
-                await player.queue.put_wait(track)
+                player.queue.put(track)
             else:
                 await player.play(track)
+            
+            if not link:
+                return
 
     #### LISTENERS ####
 
@@ -479,8 +482,12 @@ class Music(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload) -> None:
         player: wavelink.Player | None = payload.player
-        result = await Music.connect_db(self, player.guild.id)
+
+        if player is None:
+            return
         
+        result = await Music.connect_db(self, player.guild.id)
+
         if len(result) > 0:
           for x in result:
             shuffle = x[5]
@@ -488,16 +495,28 @@ class Music(commands.Cog):
         if shuffle == 1:
             if not player.queue.is_empty:
                 index = random.randint(0,player.queue.count-1)
-                strack = player.queue._queue[index]
+                strack = player.queue[index]
         
-        if player.queue.mode == "normal":
+        if player.queue.mode == wavelink.QueueMode.normal:
             if shuffle == 1 and not player.queue.is_empty:
                 await player.play(strack)
-                del player.queue._queue[index]
-        elif player.queue.mode == "loop_all":
+                del player.queue[index]
+            else:
+                await self.next(player)
+        elif player.queue.mode == wavelink.QueueMode.loop:
+            await player.play(payload.track)
+        elif player.queue.mode == wavelink.QueueMode.loop_all:
             if shuffle == 1 and not player.queue.is_empty:
                 await player.play(strack)
-                del player.queue._queue[index]
+                del player.queue[index]
+                player.queue.put(payload.track)
+            elif player.queue.is_empty:
+                await player.play(payload.track)
+            else:
+                player.queue.put(payload.track)
+                await self.next(player)
+
+                
 
         if player.playing:
             await self.update_embed(player)
@@ -547,6 +566,8 @@ class Music(commands.Cog):
             vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
         else:
             vc: wavelink.Player = ctx.voice_client
+
+        vc.autoplay = wavelink.AutoPlayMode.disabled
 
         # Dealing with a link
         if "https://" in query and ".com" in query:
@@ -668,7 +689,7 @@ class Music(commands.Cog):
 
 
         for i in range(start,end):
-            song = queue._queue[i]
+            song = queue[i]
             qDesc += f'[{str(i + 1) + " - " + song.title}]({song.uri})' + '\n'
             
         
