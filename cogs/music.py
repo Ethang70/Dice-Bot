@@ -327,7 +327,7 @@ class Music(commands.Cog):
         else:
             currentSong = player.current
             queue = player.queue
-            embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=int(currentSong.length/1000))).split('.')[0] + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
+            embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=int(currentSong.length/1000))).split(".")[0] + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
             thumbnail = currentSong.artwork
 
             if queue.is_empty:
@@ -338,7 +338,7 @@ class Music(commands.Cog):
                     for i in range(0,7):
                         try: 
                             song = queue.peek(i)
-                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split('.')[0] + "]"}]({song.uri})' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split(".")[0] + "]"}]({song.uri})' + '\n'
                         except:
                             song = queue.peek(i)
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
@@ -348,7 +348,7 @@ class Music(commands.Cog):
                     for i in range(0,queue.count):
                         try:
                             song = queue.peek(i)
-                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split('.')[0] + "]"}]({song.uri})' + '\n'
+                            qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split(".")[0] + "]"}]({song.uri})' + '\n'
                         except:
                             song = queue.peek(i)
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
