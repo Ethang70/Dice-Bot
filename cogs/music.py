@@ -699,7 +699,7 @@ class Music(commands.Cog):
             pos = str(datetime.timedelta(seconds=int(vc.position/1000))) 
             dur = str(datetime.timedelta(seconds=current_song.length/1000)) 
 
-            song = f'**[{current_song.title}]({current_song.uri})**\n({pos.split('.')[0]}/{dur.split('.')[0]})'
+            song = f'**[{current_song.title}]({current_song.uri})**\n({pos.split(".")[0]}/{dur.split(".")[0]})'
             embed = discord.Embed(color= int(config('COLOUR'), 16), title='Now Playing', description=song)
             await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (5))
 
