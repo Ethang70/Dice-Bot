@@ -13,12 +13,20 @@ from decouple import config # For .env vars
 from discord.ext import commands # To use command tree structure
 from spotipy.oauth2 import SpotifyClientCredentials # Used for logging into spotify
 from sclib.asyncio import SoundcloudAPI, Track, Playlist # Used for soundcloud
+from pathlib import Path # Used to read in gif urls from text file
 
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16) # Colour to be used on embeds
 
 class Music(commands.Cog):
     """Music cog to hold Wavelink related commands and listeners."""
+
+    current_dir = Path(__file__).parent.parent
+    gif_path = current_dir / 'gif.txt'
+    gif = []
+
+    with open(gif_path, 'r', encoding='utf-8') as f:
+            gif = f.read().splitlines()
 
     def __init__(self, bot):
         self.bot = bot
@@ -29,9 +37,8 @@ class Music(commands.Cog):
         
 
         bot.loop.create_task(self.connect_nodes())
-
-    gifdex = 0
-    gif = []
+    
+    
 
     #### CLASSES FOR BUTTONS ####
 
@@ -389,9 +396,9 @@ class Music(commands.Cog):
             embed.add_field(name="Queue: ", value=qDesc, inline=True)
 
             try:
-                embed.set_thumbnail(url=self.gif[self.gifdex])
+                embed.set_thumbnail(url=random.choice(self.gif))
             except:
-                embed.set_thumbnail(url=Music.gif[Music.gifdex])
+                embed.set_thumbnail(url=random.choice(Music.gif))
             
             try:
                 embed.set_footer(text=(player.guild.get_member(currentSong.extras.requester).nick + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
@@ -459,12 +466,6 @@ class Music(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None: 
         player: wavelink.Player | None = payload.player
-        with open('gif.txt') as f:
-            Music.gif = f.read().splitlines()
-
-        max = len(Music.gif)
-        Music.gifdex = random.randrange(0,max-1)
-
         await self.update_embed(player)
 
     # Triggers when a track ends 
