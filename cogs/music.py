@@ -32,6 +32,14 @@ class CustomPlayer(Player):
     def disable_loop(self):
         self.loop_mode = None
 
+    def cycle_loop_mode(self):
+        if self.loop_mode == None:
+            self.set_loop_mode(pomice.enums.LoopMode.QUEUE)
+        elif self.loop_mode == pomice.enums.LoopMode.QUEUE:
+            self.set_loop_mode(pomice.enums.LoopMode.TRACK)
+        else:
+            self.disable_loop()
+
     def toggle_shuffle(self):
         self.shuffle = not self.shuffle
 
@@ -152,16 +160,8 @@ class Music(commands.Cog):
             if check:
                 await interaction.response.defer()
                 vc: CustomPlayer = ctx.voice_client
-                LoopMode = vc.loop_mode
-
-                if LoopMode == None:
-                    vc.set_loop_mode(mode=pomice.enums.LoopMode.QUEUE)
-                elif LoopMode == pomice.enums.LoopMode.QUEUE:
-                    vc.set_loop_mode(mode=pomice.enums.LoopMode.TRACK)
-                else:
-                    vc.disable_loop()
-
-
+                
+                vc.cycle_loop_mode()
                 await Music.update_embed(self, vc)
 
 
@@ -177,27 +177,7 @@ class Music(commands.Cog):
                 await interaction.response.defer()
                 vc: CustomPlayer = ctx.voice_client
 
-                result = await Music.connect_db(self, interaction.guild_id)
-
-                if len(result) > 0:
-                    for x in result:
-                        shuffle = x[5]
-
-                if shuffle == 0:
-                    shuffle = 1
-                else:
-                    shuffle = 0
-
-                self.mydb = await Music.db_connector(self)
-                self.db = self.mydb.cursor()
-                    
-                sql = "UPDATE " + config('MYSQLTB') + " SET shuffle_b = %s WHERE guild_id = %s"
-                val = (shuffle, interaction.guild_id) 
-                self.db.execute(sql, val)
-                self.mydb.commit()
-                self.db.close()
-                self.mydb.close()
-            
+                vc.toggle_shuffle()
                 await Music.update_embed(self, vc)
 
     #### GENERAL FUNCTIONS ####
@@ -344,9 +324,9 @@ class Music(commands.Cog):
           for x in result:
             channel_id = x[2]
             message_id = x[3]
-            shuffle = x[5]
             eq = x[6]
         loop = player.loop_mode
+        shuffle = player.shuffle
 
         channels = await player.guild.fetch_channels()
 
@@ -402,7 +382,7 @@ class Music(commands.Cog):
             elif loop == pomice.enums.LoopMode.QUEUE:
                 status += "  🔁"
 
-            if shuffle == 1:
+            if shuffle:
                 status += "  🔀"
 
             if eq > 0:
@@ -465,6 +445,12 @@ class Music(commands.Cog):
             self.db.close()
             self.mydb.close()
         else:
+            if player.shuffle and not player.loop_mode == pomice.enums.LoopMode.TRACK:
+                queue_list = player.queue.get_queue() 
+                strack = random.choice(queue_list)
+                player.queue.remove(strack)
+                player.queue.put_at_front(strack)
+
             if player.loop_mode == pomice.enums.LoopMode.TRACK:
                 if reason == "finished":
                     player.queue.put_at_front(track)
@@ -528,19 +514,6 @@ class Music(commands.Cog):
     async def on_pomice_track_end(self, player: CustomPlayer, track: pomice.Track, reason: str) -> None:
         if player is None:
             return
-        
-        result = await Music.connect_db(self, player.guild.id)
-
-        if len(result) > 0:
-            shuffle = result[0][5]
-
-        if shuffle == 1:
-            if not player.queue.is_empty:
-                queue_list = player.queue.get_queue() 
-                strack = random.choice(queue_list)
-                player.queue.remove(strack)
-                player.queue.put_at_front(strack)
-
         
         await self.next(player, track, reason)
         await self.update_embed(player)
