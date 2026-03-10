@@ -516,7 +516,6 @@ class Music(commands.Cog):
             return
         
         await self.next(player, track, reason)
-        await self.update_embed(player)
 
     # Triggers when any message is sent
     @commands.Cog.listener()
