@@ -18,12 +18,24 @@ from pomice import Player, Queue
 
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16) # Colour to be used on embeds
-1
+
 class CustomPlayer(Player):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.queue = Queue()
+        self.shuffle = False
+        self.loop_mode = None
 
+    def set_loop_mode(self, mode: pomice.enums.LoopMode):
+        self.loop_mode = mode
+
+    def disable_loop(self):
+        self.loop_mode = None
+
+    def toggle_shuffle(self):
+        self.shuffle = not self.shuffle
+
+        
 class Music(commands.Cog):
     """Music cog to hold Pomice related commands and listeners."""
 
@@ -140,14 +152,14 @@ class Music(commands.Cog):
             if check:
                 await interaction.response.defer()
                 vc: CustomPlayer = ctx.voice_client
-                LoopMode = vc.queue.loop_mode
+                LoopMode = vc.loop_mode
 
                 if LoopMode == None:
-                    vc.queue.set_loop_mode(mode=pomice.enums.LoopMode.QUEUE)
+                    vc.set_loop_mode(mode=pomice.enums.LoopMode.QUEUE)
                 elif LoopMode == pomice.enums.LoopMode.QUEUE:
-                    vc.queue.set_loop_mode(mode=pomice.enums.LoopMode.TRACK)
+                    vc.set_loop_mode(mode=pomice.enums.LoopMode.TRACK)
                 else:
-                    vc.queue.disable_loop()
+                    vc.disable_loop()
 
 
                 await Music.update_embed(self, vc)
@@ -334,7 +346,7 @@ class Music(commands.Cog):
             message_id = x[3]
             shuffle = x[5]
             eq = x[6]
-        loop = player.queue.loop_mode
+        loop = player.loop_mode
 
         channels = await player.guild.fetch_channels()
 
@@ -437,7 +449,8 @@ class Music(commands.Cog):
             await message.edit(embed=embed, view=Music.music_button_view(paused, loop, shuffle))
 
     # Will play next track in queue or dc if no tracks left
-    async def next(self, player):
+    async def next(self, player: CustomPlayer, track: pomice.Track | None = None, reason: str | None = ""):
+        reason = str(reason).lower()
         if player.queue.is_empty:
             await player.guild.voice_client.disconnect(force=True)
             await Music.reset_embed(self, player)
@@ -452,6 +465,15 @@ class Music(commands.Cog):
             self.db.close()
             self.mydb.close()
         else:
+            if player.loop_mode == pomice.enums.LoopMode.TRACK:
+                if reason == "finished":
+                    player.queue.put_at_front(track)
+                elif reason == "stopped":
+                    player.set_loop_mode(pomice.enums.LoopMode.QUEUE)
+                    player.queue.put(track)
+            elif player.loop_mode == pomice.enums.LoopMode.QUEUE:
+                player.queue.put(track)
+
             next_song = player.queue.get()
             await player.play(next_song)
 
@@ -487,10 +509,6 @@ class Music(commands.Cog):
             track.requester = ctx.author
             player.queue.put(track)
 
-            
-        
-
-
     #### LISTENERS ####
 
     @commands.Cog.listener()
@@ -522,8 +540,9 @@ class Music(commands.Cog):
                 strack = random.choice(queue_list)
                 player.queue.remove(strack)
                 player.queue.put_at_front(strack)
+
         
-        await self.next(player)
+        await self.next(player, track, reason)
         await self.update_embed(player)
 
     # Triggers when any message is sent
@@ -567,11 +586,6 @@ class Music(commands.Cog):
         else:
             vc: CustomPlayer = ctx.voice_client
 
-        # # Dealing with a link
-        # if "https://" in query and ".com" in query:
-        #     await self.search_and_queue(player=vc, ctx=ctx, query=query, link=True)
-        # # Otherwise default to YouTube Query         
-        # else:
         await self.search_and_queue(player=vc, ctx=ctx, query=query)
 
         if vc.is_playing:
