@@ -1,4 +1,4 @@
-import wavelink # The library used for lavalink
+import pomice # The library used for lavalink
 import asyncio # For asyncio.sleep()
 import mysql.connector # To connect to music db
 import datetime # Used to convert time from S to HH:MM:SS
@@ -14,12 +14,18 @@ from discord.ext import commands # To use command tree structure
 from spotipy.oauth2 import SpotifyClientCredentials # Used for logging into spotify
 from sclib.asyncio import SoundcloudAPI, Track, Playlist # Used for soundcloud
 from pathlib import Path # Used to read in gif urls from text file
+from pomice import Player, Queue
 
 botColour = config("COLOUR")
 botColourInt = int(botColour, 16) # Colour to be used on embeds
+1
+class CustomPlayer(Player):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.queue = Queue()
 
 class Music(commands.Cog):
-    """Music cog to hold Wavelink related commands and listeners."""
+    """Music cog to hold Pomice related commands and listeners."""
 
     current_dir = Path(__file__).parent.parent
     gif_path = current_dir / 'gif.txt'
@@ -34,16 +40,16 @@ class Music(commands.Cog):
         self.channel_id = 0
         self.message_id = 0
         self.table = config('MYSQLTB')
+        self.pomice = pomice.NodePool()
         
 
         bot.loop.create_task(self.connect_nodes())
-    
     
 
     #### CLASSES FOR BUTTONS ####
 
     class music_button_view(discord.ui.View):
-        def __init__(self, paused: bool = True, loop: wavelink.QueueMode = wavelink.QueueMode.normal, shuffle: int = 0, playing: bool = True):
+        def __init__(self, paused: bool = True, loop: pomice.enums.LoopMode | None = None , shuffle: int = 0, playing: bool = True):
             super().__init__(timeout = None)
             self.paused = paused
             self.loops = loop
@@ -61,9 +67,9 @@ class Music(commands.Cog):
             self.add_item(Music.StopButton())
             self.add_item(Music.SkipButton())
             
-            if self.loops == wavelink.QueueMode.normal:
+            if self.loops == None:
                 self.add_item(Music.LoopButton(discord.ButtonStyle.danger))
-            elif self.loops == wavelink.QueueMode.loop_all:
+            elif self.loops == pomice.enums.LoopMode.QUEUE:
                 self.add_item(Music.LoopButton(discord.ButtonStyle.green))
             else:
                 self.add_item(Music.LoopButton(discord.ButtonStyle.blurple))
@@ -83,12 +89,12 @@ class Music(commands.Cog):
 
             if check:
                 await interaction.response.defer()
-                vc: wavelink.Player = ctx.voice_client
+                vc: CustomPlayer = ctx.voice_client
 
-                if vc.paused:
-                    await vc.pause(False)
+                if vc.is_paused:
+                    await vc.set_pause(False)
                 else:
-                    await vc.pause(True)
+                    await vc.set_pause(True)
                 
                 await Music.update_embed(self, vc)
 
@@ -103,9 +109,9 @@ class Music(commands.Cog):
 
             if check:
                 await interaction.response.defer()
-                vc: wavelink.Player = ctx.voice_client
-                vc.queue.clear()
-                await vc.skip(force = True)
+                vc: CustomPlayer = ctx.voice_client
+                await Music.reset_embed(self, vc)
+                await vc.destroy()
 
 
     class SkipButton(discord.ui.Button['skip']):
@@ -119,8 +125,8 @@ class Music(commands.Cog):
 
             if check:
                 await interaction.response.defer()
-                vc: wavelink.Player = ctx.voice_client
-                await vc.skip(force = True)
+                vc: CustomPlayer = ctx.voice_client
+                await vc.stop()
 
     
     class LoopButton(discord.ui.Button['loop']):
@@ -133,15 +139,16 @@ class Music(commands.Cog):
 
             if check:
                 await interaction.response.defer()
-                vc: wavelink.Player = ctx.voice_client
-                LoopMode = vc.queue.mode
+                vc: CustomPlayer = ctx.voice_client
+                LoopMode = vc.queue.loop_mode
 
-                if LoopMode == wavelink.QueueMode.normal:
-                    vc.queue.mode = wavelink.QueueMode.loop_all
-                elif LoopMode == wavelink.QueueMode.loop_all:
-                    vc.queue.mode = wavelink.QueueMode.loop
+                if LoopMode == None:
+                    vc.queue.set_loop_mode(mode=pomice.enums.LoopMode.QUEUE)
+                elif LoopMode == pomice.enums.LoopMode.QUEUE:
+                    vc.queue.set_loop_mode(mode=pomice.enums.LoopMode.TRACK)
                 else:
-                    vc.queue.mode = wavelink.QueueMode.normal
+                    vc.queue.disable_loop()
+
 
                 await Music.update_embed(self, vc)
 
@@ -156,7 +163,7 @@ class Music(commands.Cog):
 
             if check:
                 await interaction.response.defer()
-                vc: wavelink.Player = ctx.voice_client
+                vc: CustomPlayer = ctx.voice_client
 
                 result = await Music.connect_db(self, interaction.guild_id)
 
@@ -186,8 +193,18 @@ class Music(commands.Cog):
     async def connect_nodes(self):
         """Connect to our Lavalink nodes."""
         await self.bot.wait_until_ready()
-        node: wavelink.Node = wavelink.Node(uri=config("LLIP"), password=config("LLPASS"))
-        await wavelink.Pool.connect(client=self.bot, nodes=[node])
+        await self.pomice.create_node(
+            bot=self.bot,
+            host=config("LLIP"),
+            port=int(config("LLPORT")),
+            identifier="MAIN",
+            password=config("LLPASS"),
+            spotify_client_id=config("SPOT_CLI"),
+            spotify_client_secret=config("SPOT_SEC"),
+            apple_music=False,
+            fallback=True,
+        )
+
             
     # Checks thats conditions are right for interactions
     async def check_cond(self, ctx, interaction, player, author = None):
@@ -201,7 +218,7 @@ class Music(commands.Cog):
             channel_id = x[2]
             message_id = x[3]
 
-        if (not ctx.voice_client or not player.connected) and interaction is not None:
+        if (not ctx.voice_client or not player.is_connected) and interaction is not None:
             embed = functions.discordEmbed("Failed Check", "Im not connected", botColourInt)
             await interaction.response.send_message(embed=embed, ephemeral = True, delete_after = (5))
             return False
@@ -299,7 +316,7 @@ class Music(commands.Cog):
         embed.add_field(name="Queue: ", value="Empty")
         embed.set_image(url=config("BKG_IMG"))
         embed.set_thumbnail(url="https://bosshunting.com.au/wp-content/uploads/2020/03/tumblr_nirbz9e90g1tcuj64o1_400.gif")
-        embed.set_footer(text="Status: Idle", icon_url=player.node.client.user.avatar.url)
+        embed.set_footer(text="Status: Idle", icon_url=player.node.bot.user.avatar.url)
         await message.edit(content="To add a song join voice, and type song or url here",embed=embed, view=Music.music_button_view(True, playing = False))
 
     # Updates the music embed to reflect whats in the player
@@ -317,7 +334,7 @@ class Music(commands.Cog):
             message_id = x[3]
             shuffle = x[5]
             eq = x[6]
-        loop = player.queue.mode
+        loop = player.queue.loop_mode
 
         channels = await player.guild.fetch_channels()
 
@@ -328,48 +345,49 @@ class Music(commands.Cog):
 
         message = await channel.fetch_message(message_id)
         
-        if not player.connected or not player.playing:
+        if not player.is_connected or not player.is_playing:
             await Music.reset_embed(self,player)
             return
         else:
             currentSong = player.current
             queue = player.queue
             embed = discord.Embed(title = "Playing: " + currentSong.title + " [" + str(datetime.timedelta(seconds=int(currentSong.length/1000))).split(".")[0] + "]", url=currentSong.uri, color = int(config('COLOUR'), 16))
-            thumbnail = currentSong.artwork
+            thumbnail = currentSong.thumbnail
 
             if queue.is_empty:
                 qDesc ='Empty'
             else:
                 qDesc =''
+                queue_list = queue.get_queue()
                 if queue.count > 8:
                     for i in range(0,7):
                         try: 
-                            song = queue.peek(i)
+                            song = queue_list[i]
                             qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split(".")[0] + "]"}]({song.uri})' + '\n'
                         except:
-                            song = queue.peek(i)
+                            song = queue_list[i]
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
                     offset = queue.count - 7
                     qDesc += "and " + str(offset) + " more track(s)\n"
                 else:
                     for i in range(0,queue.count):
                         try:
-                            song = queue.peek(i)
+                            song = queue_list[i]
                             qDesc += f'[{str(i + 1) + " - " + song.title + " [" + str(datetime.timedelta(seconds=int(song.length/1000))).split(".")[0] + "]"}]({song.uri})' + '\n'
                         except:
-                            song = queue.peek(i)
+                            song = queue_list[i]
                             qDesc += f'[{str(i + 1) + " - " + song.title}]' + '\n'
             
-            if player.paused:
+            if player.is_paused:
                 status = "Paused"
                 paused = True
             else:
                 status = "Playing"
                 paused = False
 
-            if loop == wavelink.QueueMode.loop:
+            if loop == pomice.enums.LoopMode.TRACK:
                 status += "  🔂"
-            elif loop == wavelink.QueueMode.loop_all:
+            elif loop == pomice.enums.LoopMode.QUEUE:
                 status += "  🔁"
 
             if shuffle == 1:
@@ -399,11 +417,22 @@ class Music(commands.Cog):
                 embed.set_thumbnail(url=random.choice(self.gif))
             except:
                 embed.set_thumbnail(url=random.choice(Music.gif))
+
+    
+            # Check if requester is already an object. If it's an ID, we fetch it.
+            requester = currentSong.requester
             
-            try:
-                embed.set_footer(text=(player.guild.get_member(currentSong.extras.requester).nick + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
-            except:
-                embed.set_footer(text=(player.guild.get_member(currentSong.extras.requester).name + "    Status: " + status), icon_url=(player.guild.get_member(currentSong.extras.requester)).avatar.url)
+            if isinstance(requester, int):
+                requester = player.guild.get_member(requester) or await player.guild.fetch_member(requester)
+            
+            if not requester:
+                name = "♫"
+                avatar_url = self.bot.user.display_avatar.url
+            else:
+                name = requester.display_name
+                avatar_url = requester.display_avatar.url
+
+            embed.set_footer(text=(name + "    Status: " + status), icon_url=avatar_url)
 
             await message.edit(embed=embed, view=Music.music_button_view(paused, loop, shuffle))
 
@@ -428,13 +457,10 @@ class Music(commands.Cog):
 
     # A function to search for a track and to queue it onto the player
     # plus a boolean if the search should try YouTubeMusic first
-    async def search_and_queue(self, player: wavelink.Player, ctx: commands.Context, 
+    async def search_and_queue(self, player: CustomPlayer, ctx: commands.Context, 
                                query: str, link: bool = False):
         try:
-            if link:
-                tracks: wavelink.Search = await wavelink.Playable.search(query)
-            else:
-                tracks: wavelink.Search = await wavelink.Playable.search(query, source='ytsearch') 
+            tracks = await player.get_tracks(query, ctx=ctx)
 
             if not tracks:
                 embed = functions.discordEmbed("Player", "Error: Could not find track :(", botColourInt)
@@ -446,76 +472,59 @@ class Music(commands.Cog):
             msg = await ctx.send(embed=embed)
             await asyncio.sleep(2)
             await msg.delete()
-            if not player.playing:
+            if not player.is_playing:
                 await self.next(player)
             return
 
+        if isinstance(tracks, pomice.Playlist):
+            tracks = tracks.tracks 
+
+        if not player.is_playing:
+            track = tracks.pop(0)
+            track.requester = ctx.author
+            await player.play(track)
         for track in tracks:
-            track.extras = {"requester": ctx.author.id}    
-            if player.playing:
-                player.queue.put(track)
-            else:
-                await player.play(track)
+            track.requester = ctx.author
+            player.queue.put(track)
+
             
-            if not link:
-                return
+        
+
 
     #### LISTENERS ####
 
+    @commands.Cog.listener()
+    async def unload(self):
+        for node in self.pomice.nodes.values():
+            await node.disconnect()
+            
+
     # Triggers when a track starts playing
     @commands.Cog.listener()
-    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None: 
-        player: wavelink.Player | None = payload.player
+    async def on_pomice_track_start(self, player: CustomPlayer, track: pomice.Track) -> None: 
         await self.update_embed(player)
 
     # Triggers when a track ends 
     # Either by full run through or skip
     @commands.Cog.listener()
-    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload) -> None:
-        player: wavelink.Player | None = payload.player
-
+    async def on_pomice_track_end(self, player: CustomPlayer, track: pomice.Track, reason: str) -> None:
         if player is None:
             return
         
         result = await Music.connect_db(self, player.guild.id)
 
         if len(result) > 0:
-          for x in result:
             shuffle = x[5]
-        
+
         if shuffle == 1:
             if not player.queue.is_empty:
-                index = random.randint(0,player.queue.count-1)
-                strack = player.queue[index]
+                queue_list = player.queue.get_queue() 
+                strack = random.choice(queue_list)
+                player.queue.remove(strack)
+                player.queue.put_at_front(strack)
         
-        if player.queue.mode == wavelink.QueueMode.normal:
-            if shuffle == 1 and not player.queue.is_empty:
-                await player.play(strack)
-                del player.queue[index]
-            else:
-                await self.next(player)
-        elif player.queue.mode == wavelink.QueueMode.loop:
-            await player.play(payload.track)
-        elif player.queue.mode == wavelink.QueueMode.loop_all:
-            if shuffle == 1 and not player.queue.is_empty:
-                await player.play(strack)
-                del player.queue[index]
-                player.queue.put(payload.track)
-            elif player.queue.is_empty:
-                await player.play(payload.track)
-            else:
-                player.queue.put(payload.track)
-                await self.next(player)
-
-                
-
-        if player.playing:
-            await self.update_embed(player)
-
-    # Triggers when a connection to a node has been established
-    @commands.Cog.listener()
-    async def on_wavelink_node_ready(self, node: wavelink.Node):
-        print(f'Node: <{node.node.identifier}> is ready!')
+        await self.next(player)
+        await self.update_embed(player)
 
     # Triggers when any message is sent
     @commands.Cog.listener()
@@ -554,20 +563,18 @@ class Music(commands.Cog):
             return
         
         if not ctx.voice_client:
-            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            vc: CustomPlayer = await ctx.author.voice.channel.connect(cls=CustomPlayer)
         else:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
 
-        vc.autoplay = wavelink.AutoPlayMode.disabled
+        # # Dealing with a link
+        # if "https://" in query and ".com" in query:
+        #     await self.search_and_queue(player=vc, ctx=ctx, query=query, link=True)
+        # # Otherwise default to YouTube Query         
+        # else:
+        await self.search_and_queue(player=vc, ctx=ctx, query=query)
 
-        # Dealing with a link
-        if "https://" in query and ".com" in query:
-            await self.search_and_queue(player=vc, ctx=ctx, query=query, link=True)
-        # Otherwise default to YouTube Query         
-        else:
-            await self.search_and_queue(player=vc, ctx=ctx, query=query)
-
-        if vc.playing:
+        if vc.is_playing:
             await self.update_embed(vc)
 
     # Moves a song position in the queue to one specified
@@ -578,7 +585,7 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
             if vc.queue.is_empty:
                 return
         
