@@ -25,6 +25,7 @@ class CustomPlayer(Player):
         self.queue = Queue()
         self.shuffle = False
         self.loop_mode = None
+        self.is_tearing_down = False
 
     def set_loop_mode(self, mode: pomice.enums.LoopMode):
         self.loop_mode = mode
@@ -42,6 +43,12 @@ class CustomPlayer(Player):
 
     def toggle_shuffle(self):
         self.shuffle = not self.shuffle
+
+    async def teardown(self):
+        self.is_tearing_down = True
+        await self.stop()
+        await asyncio.sleep(0.25)
+        await self.destroy()
 
         
 class Music(commands.Cog):
@@ -131,7 +138,7 @@ class Music(commands.Cog):
                 await interaction.response.defer()
                 vc: CustomPlayer = ctx.voice_client
                 await Music.reset_embed(self, vc)
-                await vc.destroy()
+                await vc.teardown()
 
 
     class SkipButton(discord.ui.Button['skip']):
@@ -432,18 +439,7 @@ class Music(commands.Cog):
     async def next(self, player: CustomPlayer, track: pomice.Track | None = None, reason: str | None = ""):
         reason = str(reason).lower()
         if player.queue.is_empty:
-            await player.guild.voice_client.disconnect(force=True)
-            await Music.reset_embed(self, player)
-
-            self.mydb = await Music.db_connector(self)
-            self.db = self.mydb.cursor()
-                
-            sql = "UPDATE " + config('MYSQLTB') + " SET shuffle_b = 0, eq = 0 WHERE guild_id = %s"
-            val = [(player.guild.id)] 
-            self.db.execute(sql, val)
-            self.mydb.commit()
-            self.db.close()
-            self.mydb.close()
+            await player.teardown()
         else:
             if player.shuffle and not player.loop_mode == pomice.enums.LoopMode.TRACK:
                 queue_list = player.queue.get_queue() 
@@ -512,7 +508,7 @@ class Music(commands.Cog):
     # Either by full run through or skip
     @commands.Cog.listener()
     async def on_pomice_track_end(self, player: CustomPlayer, track: pomice.Track, reason: str) -> None:
-        if player is None:
+        if player is None or player.is_tearing_down:
             return
         
         await self.next(player, track, reason)
@@ -612,11 +608,13 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
             if vc.queue.is_empty:
                 return
-            song = vc.queue[song_number-1]
-            del vc.queue[song_number-1]
+            
+            queue = vc.queue.get_queue()
+            song = queue[song_number-1]
+            vc.queue.remove(song)
 
             embed = functions.discordEmbed('Remove', "Song removed: " + song.title, botColourInt)
             await interaction.response.send_message(embed=embed, delete_after = (1))
@@ -629,10 +627,10 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
-            vc.queue.clear()
-            await Music.reset_embed(self, vc)
-            await vc.disconnect()
+            vc: CustomPlayer = ctx.voice_client
+            await vc.teardown()
+            await self.update_embed(vc)
+
             embed = functions.discordEmbed(title = 'Disconnected', description = 'Bot disconnected', colour = botColourInt)
             await interaction.response.send_message(embed=embed, delete_after = (1))
 
