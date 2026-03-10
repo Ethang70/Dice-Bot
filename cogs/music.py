@@ -6,13 +6,10 @@ import discord # Use discord components and embeds
 import math # Used for create queue pages
 import functions # Used for embed function
 import random # Used for shuffle selection song index
-import spotipy # Used to get meta data for spotify songs/playlists/albums
 
 from discord import app_commands # Used for slash commands
 from decouple import config # For .env vars
 from discord.ext import commands # To use command tree structure
-from spotipy.oauth2 import SpotifyClientCredentials # Used for logging into spotify
-from sclib.asyncio import SoundcloudAPI, Track, Playlist # Used for soundcloud
 from pathlib import Path # Used to read in gif urls from text file
 from pomice import Player, Queue
 

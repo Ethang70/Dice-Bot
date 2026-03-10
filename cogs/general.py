@@ -1,11 +1,9 @@
 import discord
 import random
 import re
-import asyncio
 from decouple import config
 from discord.ext import commands
 import functions
-import mysql.connector
 from discord import app_commands # Used for slash commands
 
 prefix = config('PREFIX')
