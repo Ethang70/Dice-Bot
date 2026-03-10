@@ -3,3 +3,4 @@ mysql_connector_repackaged==0.3.1
 pomice==2.11.0
 python-decouple==3.8
 Requests==2.32.5
+openai==2.26.0

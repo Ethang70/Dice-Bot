@@ -686,7 +686,8 @@ class Music(commands.Cog):
         if check:
             vc: CustomPlayer = ctx.voice_client
             current_song  = vc.current
-            pos = str(datetime.timedelta(seconds=int(vc.position/1000))) 
+            pos = min(vc.position, current_song.length)
+            pos = str(datetime.timedelta(seconds=int(pos/1000))) 
             dur = str(datetime.timedelta(seconds=current_song.length/1000)) 
 
             song = f'**[{current_song.title}]({current_song.uri})**\n({pos.split(".")[0]}/{dur.split(".")[0]})'
