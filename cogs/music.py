@@ -595,7 +595,7 @@ class Music(commands.Cog):
         else:
             return
 
-        vc.queue.put_at(new, song)
+        vc.queue.put_at_index(new, song)
         await self.update_embed(vc)
         embed = functions.discordEmbed('Move', 'Moved ' + song.title + ' from ' + str(current+1) + ' to ' + str(new+1), botColourInt)
         await interaction.response.send_message(embed=embed, delete_after = (4))
@@ -642,7 +642,7 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
         
         queue = vc.queue
 
@@ -686,7 +686,7 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
             current_song  = vc.current
             pos = str(datetime.timedelta(seconds=int(vc.position/1000))) 
             dur = str(datetime.timedelta(seconds=current_song.length/1000)) 
@@ -703,7 +703,7 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
             time_msec = self.get_sec(time) * 1000
 
             if not time_msec:
@@ -722,7 +722,7 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
 
             if vol > 100 or vol < 0:
                 embed = functions.discordEmbed('Volume' , 'Invalid volume size, please try between 0-1000', botColourInt)
@@ -739,7 +739,7 @@ class Music(commands.Cog):
         check = await Music.check_cond(self, ctx, interaction, ctx.voice_client)
 
         if check:
-            vc: wavelink.Player = ctx.voice_client
+            vc: CustomPlayer = ctx.voice_client
             await self.update_embed(vc)
             embed = functions.discordEmbed('Update' , 'Updated!', botColourInt)
             await interaction.response.send_message(embed=embed, ephemeral = True)
