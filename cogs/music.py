@@ -514,7 +514,7 @@ class Music(commands.Cog):
         result = await Music.connect_db(self, player.guild.id)
 
         if len(result) > 0:
-            shuffle = x[5]
+            shuffle = result[0][5]
 
         if shuffle == 1:
             if not player.queue.is_empty:
