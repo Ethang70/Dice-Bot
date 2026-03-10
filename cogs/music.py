@@ -436,6 +436,7 @@ class Music(commands.Cog):
     async def next(self, player: CustomPlayer, track: pomice.Track | None = None, reason: str | None = ""):
         reason = str(reason).lower()
         if player.queue.is_empty:
+            await self.reset_embed(player)
             await player.teardown()
         else:
             if player.shuffle and not player.loop_mode == pomice.enums.LoopMode.TRACK:
