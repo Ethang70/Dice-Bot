@@ -1,5 +1,6 @@
 discord.py==2.7.1
 mysql_connector_repackaged==0.3.1
+mysql-connector-python==9.6.0
 pomice==2.11.0
 python-decouple==3.8
 Requests==2.32.5
