@@ -478,14 +478,21 @@ class Music(commands.Cog):
                 await self.next(player)
             return
 
+        playlist = False
         if isinstance(tracks, pomice.Playlist):
-            tracks = tracks.tracks 
+            tracks = tracks.tracks
+            playlist = True 
 
         if not player.is_playing:
             track = tracks.pop(0)
             track.requester = ctx.author
             await player.play(track)
-        for track in tracks:
+        elif playlist:
+            for track in tracks:
+                track.requester = ctx.author
+                player.queue.put(track)
+        else:
+            track = tracks.pop(0)
             track.requester = ctx.author
             player.queue.put(track)
 
